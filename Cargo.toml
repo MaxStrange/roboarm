@@ -1,0 +1,43 @@
+[package]
+name = "roboarm"
+version = "0.1.0"
+authors = ["Max Strange <maxfieldstrange@gmail.com"]
+description = "Simple robot arm for a class for my Master's program at UW Bothell."
+license = "MIT OR Apache-2.0"
+repository = "https://MaxStrange/roboarm"
+
+[profile.release]
+lto = true
+debug = true
+opt-level = "s"
+
+[dependencies]
+
+[dependencies.tm4c123x-hal]
+version = "0.4.0"
+features = ["rt"]
+#
+#[dependencies.menu]
+#version = "0.1"
+#
+#[dependencies.vga-framebuffer]
+#version = "0.5.0"
+#
+#[dependencies.embedded-hal]
+#version = "0.1.1"
+#features = ["unproven"]
+#
+[dependencies.cortex-m]
+version = "0.5"
+#
+[dependencies.cortex-m-rt]
+version = "0.5"
+#
+#[dependencies.panic-semihosting]
+#version = "0.3"
+#
+#[dependencies.cortex-m-semihosting]
+#version = "0.3"
+#
+#[dependencies.pc-keyboard]
+#version = "0.1.1"
