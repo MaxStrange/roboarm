@@ -1,2 +1,3 @@
-/target
+roboarm/target
+teleop/target
 **/*.rs.bk
