@@ -82,7 +82,7 @@ static void _check_console(void) {
         char *cmd = strtok(tmpbuf, " \n\r");
         if ((cmd != NULL) && (strncmp(_console_commands[i].str, cmd, MIN(bufidx, MAX_COMMAND_LEN)) == 0))
         {
-            _console_commands[i].func(console_buf);
+            _console_commands[i].func((const char *)console_buf, ARRAY_LEN(console_buf));
             memset(console_buf, '\0', sizeof(char) * ARRAY_LEN(console_buf));
             break;
         }
@@ -107,7 +107,7 @@ static void _cmd_cb_help(const char *consolebuf, uint16_t buflen)
     Serial.print("Available Commands:\n");
     for (uint16_t i = 0; i < ARRAY_LEN(_console_commands); i++)
     {
-        snprintf(buf, ARRAY_LEN(buf), "%s: %s\n", _console_commands[i].str, _console_commands[i].description));
+        snprintf(buf, ARRAY_LEN(buf), "%s: %s\n", _console_commands[i].str, _console_commands[i].description);
         Serial.print(buf);
     }
 }
