@@ -8,9 +8,15 @@ extern crate cortex_m_rt;   // Brings in the Cortex Runtime, including panic stu
 extern crate tm4c123x_hal;  // Brings in SVD2Rust stuff, including ISR default implementations and peripheral structs
 
 use core::panic::PanicInfo;
+use tm4c123x_hal::prelude::*;
+use tm4c123x_hal::serial::{NewlineMode, Serial};
+
+mod console;
 
 entry!(main);
 fn main() -> ! {
+    let periph = tm4c123x_hal::Peripherals::take().unwrap();
+    let coreperiph = tm4c123x_hal::CorePeripherals::take().unwrap();
     loop {}
 }
 

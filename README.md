@@ -1,2 +1,3 @@
-# roboarm
-Firmware for a Robot Arm running on a Tiva C
+# RoboArm
+
+Just a simple project for controlling a small Robot Arm in Rust and Arduino.
