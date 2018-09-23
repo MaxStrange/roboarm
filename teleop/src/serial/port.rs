@@ -1,6 +1,7 @@
 /// Module mostly useful for providing convient functions for getting a new SerialPort object.
 pub mod portcomms {
     use serialport;
+    use testport;
     use std::time::Duration;
 
     const FTDI_2232H_VID: u16 = 0x0403;
@@ -52,9 +53,16 @@ pub mod portcomms {
 
     /// Get the serial port to the robot arm or None.
     /// If the user has requested a particular com port, that one is tried first.
+    /// If the special string 'test' is passed in, we give a test port.
     pub fn get_serial_port(user_requested_port: Option<String>) -> Option<Box<serialport::SerialPort>> {
-        // Try user first
+        // If the user has requested a port
         if let Some(comname) = user_requested_port {
+            // Check if it is the test port
+            if comname.trim().to_ascii_lowercase() == "test" {
+                return Some(Box::new(testport::TestPort));
+            }
+
+            // If it is a real port, try opening it
             if let Ok(ret) = serialport::open_with_settings(comname.as_str(), &build_default_port_settings()) {
                 return Some(ret);
             } else {
@@ -62,7 +70,7 @@ pub mod portcomms {
             }
         }
 
-        // Try default look up mechanism instead
+        // Try default look up mechanism as last resort
         if let Ok(ports) = serialport::available_ports() {
             match ports.len() {
                 0 => None,
