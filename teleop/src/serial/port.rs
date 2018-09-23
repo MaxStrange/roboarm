@@ -1,4 +1,5 @@
-pub mod comms {
+/// Module mostly useful for providing convient functions for getting a new SerialPort object.
+pub mod portcomms {
     use serialport;
     use std::time::Duration;
 
