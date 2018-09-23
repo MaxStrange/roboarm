@@ -1,5 +1,6 @@
 use std::path;
 
+#[derive(Clone, Copy)]
 pub enum ServoId {
     Base,
     Shoulder,
@@ -21,6 +22,7 @@ impl ServoId {
     }
 }
 
+#[derive(Clone)]
 pub enum Command {
     Quit,
     Led(bool),              //on/off

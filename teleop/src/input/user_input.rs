@@ -21,19 +21,27 @@ pub mod user_input {
                 },
             };
 
-            if let Ok(cmd) = parsed {
-                match cmd {
-                    commands::Command::Quit => {
-                        should_quit = true;
-                        tx.send(cmd).expect("Couldn't send the message to the Serial thread.");
-                    },
-                    commands::Command::Script(fpath) => {
-                        run_script(&tx, &fpath);
-                    },
-                    _ => tx.send(cmd).expect("Couldn't send the message to the Serial thread."),
-                }
-            } else {
-                println!("Error parsing input.");
+            match parsed {
+                Ok(cmd) => { should_quit = execute_command(cmd, &tx); },
+                Err(msg) => println!("Error parsing input: {}", msg),
+            }
+        }
+    }
+
+    /// Executes the command, returning true if the command is 'quit'.
+    fn execute_command(cmd: commands::Command, tx: &mpsc::Sender<commands::Command>) -> bool {
+        match cmd {
+            commands::Command::Quit => {
+                tx.send(cmd).expect("Couldn't send the message to the Serial thread.");
+                true
+            },
+            commands::Command::Script(fpath) => {
+                run_script(tx, &fpath);
+                false
+            },
+            _ => {
+                tx.send(cmd).expect("Couldn't send the message to the Serial thread.");
+                false
             }
         }
     }
