@@ -1,0 +1,5 @@
+servo 1 2
+servo 2 3
+led on
+led off
+servo 2 3
