@@ -29,8 +29,7 @@ run-teleop:
 	$(MAKE) -C teleop run
 
 .PHONY: ci
-ci:
-	@echo This is a test.
+ci: teleop roboarm
 
 .PHONY: date
 date:
