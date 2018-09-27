@@ -28,6 +28,10 @@ gdb:
 run-teleop:
 	$(MAKE) -C teleop run
 
+.PHONY: ci
+ci:
+	@echo This is a test.
+
 .PHONY: date
 date:
 	@echo %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
