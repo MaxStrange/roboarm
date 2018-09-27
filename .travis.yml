@@ -8,7 +8,7 @@ rust:
 cache: cargo
 
 install:
-  - rustup default nightly
+  - rustup default nightly  # At some point, this will not be necessary
   - sudo apt-get install gcc-arm-none-eabi
   - rustup target add thumbv7em-none-eabihf
 
