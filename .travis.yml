@@ -9,7 +9,7 @@ cache: cargo
 
 install:
   - rustup default nightly
-  - sudo apt-get install gcc-arm-none-eabihf
+  - sudo apt-get install gcc-arm-none-eabi
   - rustup target add thumbv7em-none-eabihf
 
 script:
