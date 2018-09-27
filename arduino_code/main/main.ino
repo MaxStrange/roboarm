@@ -1,3 +1,4 @@
+#include <Servo.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
@@ -14,6 +15,11 @@ static void _cmd_cb_servo(const char *consolebuf, uint16_t buflen);
 #define MIN(a, b)           (((a) < (b)) ? (a) : (b))
 #define NSERVOS             5
 #define SERVO_DEFAULT_ANGLE 90
+#define PIN_SERVO_BASE      1 // TODO
+#define PIN_SERVO_SHOULDER  1 // TODO
+#define PIN_SERVO_ELBOW     1 // TODO
+#define PIN_SERVO_WRIST     1 // TODO
+#define PIN_SERVO_HAND      1 // TODO
 
 ///////////////////////// Typedefs ///////////////////////////////////
 typedef enum {
@@ -27,7 +33,9 @@ typedef enum {
 typedef struct {
     servo_id_t id;
     uint16_t angle;
-} servo_t;
+    Servo *servo;
+    uint8_t pin;
+} my_servo_t;
 
 typedef void (*callback_t)(const char *consolebuf, uint16_t buflen);
 
@@ -38,12 +46,18 @@ typedef struct {
 } console_command_t;
 
 ///////////////////////// Globals ///////////////////////////////////
-static servo_t _arm_joints[NSERVOS] = {
-    {SERVO_BASE, SERVO_DEFAULT_ANGLE},
-    {SERVO_SHOULDER, SERVO_DEFAULT_ANGLE},
-    {SERVO_ELBOW, SERVO_DEFAULT_ANGLE},
-    {SERVO_WRIST, SERVO_DEFAULT_ANGLE},
-    {SERVO_HAND, SERVO_DEFAULT_ANGLE},
+Servo __s0;
+Servo __s1;
+Servo __s2;
+Servo __s3;
+Servo __s4;
+
+static my_servo_t _arm_joints[NSERVOS] = {
+    {SERVO_BASE, SERVO_DEFAULT_ANGLE, &__s0, PIN_SERVO_BASE},
+    {SERVO_SHOULDER, SERVO_DEFAULT_ANGLE, &__s1, PIN_SERVO_SHOULDER},
+    {SERVO_ELBOW, SERVO_DEFAULT_ANGLE, &__s2, PIN_SERVO_ELBOW},
+    {SERVO_WRIST, SERVO_DEFAULT_ANGLE, &__s3, PIN_SERVO_WRIST},
+    {SERVO_HAND, SERVO_DEFAULT_ANGLE, &__s4, PIN_SERVO_HAND},
 };
 
 console_command_t _console_commands[] = {
@@ -96,12 +110,17 @@ static void _check_console(void) {
  */
 static void _manage_servos(void) {
     for (int i = 0; i < NSERVOS; i++) {
-        // TODO: pwm write the correct value to the correct pin
+        _arm_joints[i].servo->write(_arm_joints[i].angle);
     }
 }
 
 void setup() {
+    pinMode(LED_BUILTIN, OUTPUT);
     Serial.begin(115200);
+
+    for (int i = 0; i < NSERVOS; i++) {
+        _arm_joints[i].servo->attach(_arm_joints[i].pin);
+    }
 }
 
 void loop() {
@@ -133,9 +152,9 @@ static void _cmd_cb_led(const char *consolebuf, uint16_t buflen) {
             // Should be 'led'
         } else if (index == 1) {
             if (strncmp(tok, "on", ARRAY_LEN(buf)) == 0) {
-                // Turn on the LED TODO
+                digitalWrite(LED_BUILTIN, HIGH);
             } else if (strncmp(tok, "off", ARRAY_LEN(buf)) == 0) {
-                // Turn off the LED TODO
+                digitalWrite(LED_BUILTIN, LOW);
             } else {
                 Serial.print("USAGE: led <on/off>");
             }
