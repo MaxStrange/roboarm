@@ -1,5 +1,6 @@
 #![no_std]
 #![no_main]
+
 /**
  * Much initialization code stolen most gleefully from jpster: https://github.com/thejpster/monotron
  * Go check out that project, since it's awesome.
@@ -18,7 +19,7 @@ use tm4c123x_hal::sysctl;
 
 mod console;
 
-entry!(main);
+#[entry]
 fn main() -> ! {
     let periph = tm4c123x_hal::Peripherals::take().unwrap();
     let coreperiph = tm4c123x_hal::CorePeripherals::take().unwrap();
