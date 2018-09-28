@@ -15,11 +15,11 @@ static void _cmd_cb_servo(const char *consolebuf, uint16_t buflen);
 #define MIN(a, b)           (((a) < (b)) ? (a) : (b))
 #define NSERVOS             5
 #define SERVO_DEFAULT_ANGLE 90
-#define PIN_SERVO_BASE      1 // TODO
-#define PIN_SERVO_SHOULDER  1 // TODO
-#define PIN_SERVO_ELBOW     1 // TODO
-#define PIN_SERVO_WRIST     1 // TODO
-#define PIN_SERVO_HAND      1 // TODO
+#define PIN_SERVO_BASE      3
+#define PIN_SERVO_SHOULDER  5
+#define PIN_SERVO_ELBOW     6
+#define PIN_SERVO_WRIST     10
+#define PIN_SERVO_HAND      11
 
 ///////////////////////// Typedefs ///////////////////////////////////
 typedef enum {
