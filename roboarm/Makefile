@@ -10,7 +10,7 @@ clean:
 
 .PHONY: openocd
 openocd:
-	@echo "TODO: This subcommand :P"  #openocd -f interface/stlink-v2-1.cfg -f target/stm32f3x.cfg
+	openocd -f target/ek-tm4c123gxl.cfg
 
 .PHONY: gdb
 gdb:
