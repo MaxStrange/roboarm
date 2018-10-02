@@ -53,9 +53,10 @@ fn main() -> ! {
         &clocks,
         &sc.power_control,
     );
+    let mut con = console::Console::new(uart).unwrap();
 
     loop {
-        uart.write_all("Hello, World!".as_bytes());
+        con.serial.write_all("Hello, World!".as_bytes());
     }
 }
 

@@ -10,7 +10,7 @@ clean:
 
 .PHONY: openocd
 openocd:
-	openocd -f target/ek-tm4c123gxl.cfg
+	openocd -f board/ek-tm4c123gxl.cfg
 
 .PHONY: gdb
 gdb:
