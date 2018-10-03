@@ -15,6 +15,7 @@ pub mod comms {
             let cmd = rx.recv().expect("Problem reading from the Input channel");
 
             match cmd {
+                commands::Command::Help => panic!("Should not have gotten help command on this thread."),
                 commands::Command::Quit => { should_quit = true; },
                 commands::Command::Script(_) => panic!("Should not have gotten script command on this thread."),
                 commands::Command::Led(_on) => { write_to_port(&mut port, cmd).unwrap(); },
@@ -37,6 +38,7 @@ pub mod comms {
             },
             commands::Command::Quit => panic!("Should not have gotten quit command in 'write_to_port'"),
             commands::Command::Script(_) => panic!("Should not have gotten script command in 'write_to_port'"),
+            commands::Command::Help => panic!("Should not have gotten help command in 'write_to_port'"),
         }
     }
 }

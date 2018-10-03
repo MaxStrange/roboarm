@@ -22,10 +22,20 @@ impl ServoId {
     }
 }
 
+/// Prints the help message to the console
+pub fn print_help() {
+    println!("Help: Prints this help message");
+    println!("Quit: Quits the program");
+    println!("Led: <on/off>");
+    println!("Servo: <id> <angle - 0 to 180>");
+    println!("Script: <path to script>");
+}
+
 #[derive(Clone)]
 pub enum Command {
+    Help,
     Quit,
-    Led(bool),              //on/off
+    Led(bool),              // on/off
     Servo(ServoId, u16),    // ServoID, angle
     Script(String),         // fpath
 }
@@ -43,6 +53,7 @@ impl Command {
         let tokens: Vec<&str> = line.trim().split_whitespace().collect();
         assert!(tokens.len() > 0);
         match tokens[0].to_ascii_lowercase().as_str() {
+            "help" => Ok(Command::Help),
             "quit" => Ok(Command::Quit),
             "led" => Command::led_from_string(line),
             "servo" => Command::servo_from_string(line),
@@ -113,15 +124,15 @@ impl Command {
                 return Err("Servo id is invalid.");
             }
         } else {
-            return Err("USAGE for Servo command: servo <id - must be numeric> <angle - between 0 and 360>");
+            return Err("USAGE for Servo command: servo <id - must be numeric> <angle - between 0 and 180>");
         }
 
         assert!(tokens.len() == 3);
-        // If the third token is not a valid angle (0 to 360), that's also an error
+        // If the third token is not a valid angle (0 to 180), that's also an error
         let angle = match tokens[2].parse::<f64>() {
-            Ok(val) if val <= 360.0 && val >= 0.0 => val,
+            Ok(val) if val <= 180.0 && val >= 0.0 => val,
             Err(_) => { return Err("Need a numeric value for angle"); },
-            Ok(_) => { return Err("Angle must be in range [0, 360]"); },
+            Ok(_) => { return Err("Angle must be in range [0, 180]"); },
         };
 
         Ok(Command::Servo(servoid, angle.round() as u16))

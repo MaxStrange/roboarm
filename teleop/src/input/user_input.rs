@@ -33,6 +33,10 @@ pub mod user_input {
     /// Executes the command, returning true if the command is 'quit'.
     fn execute_command(cmd: commands::Command, tx: &mpsc::Sender<commands::Command>) -> bool {
         match cmd {
+            commands::Command::Help => {
+                commands::print_help();
+                false
+            },
             commands::Command::Quit => {
                 tx.send(cmd).expect("Couldn't send the message to the Serial thread.");
                 true
