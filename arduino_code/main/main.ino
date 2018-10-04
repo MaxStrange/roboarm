@@ -20,6 +20,7 @@ static void _cmd_cb_servo(const char *consolebuf, uint16_t buflen);
 #define PIN_SERVO_ELBOW     6
 #define PIN_SERVO_WRIST     9
 #define PIN_SERVO_HAND      10
+#define PIN_LED             13
 
 ///////////////////////// Typedefs ///////////////////////////////////
 typedef enum {
@@ -115,7 +116,7 @@ static void _manage_servos(void) {
 }
 
 void setup() {
-    pinMode(LED_BUILTIN, OUTPUT);
+    pinMode(PIN_LED, OUTPUT);
     Serial.begin(115200);
 
     for (int i = 0; i < NSERVOS; i++) {
@@ -152,9 +153,9 @@ static void _cmd_cb_led(const char *consolebuf, uint16_t buflen) {
             // Should be 'led'
         } else if (index == 1) {
             if (strncmp(tok, "on", ARRAY_LEN(buf)) == 0) {
-                digitalWrite(LED_BUILTIN, HIGH);
+                digitalWrite(PIN_LED, HIGH);
             } else if (strncmp(tok, "off", ARRAY_LEN(buf)) == 0) {
-                digitalWrite(LED_BUILTIN, LOW);
+                digitalWrite(PIN_LED, LOW);
             } else {
                 Serial.print("USAGE: led <on/off>");
             }
