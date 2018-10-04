@@ -10,7 +10,8 @@ static void _cmd_cb_servo(const char *consolebuf, uint16_t buflen);
 
 ///////////////////////// Defines ///////////////////////////////////
 #define ARRAY_LEN(a)        ((sizeof (a))/(sizeof (a)[0]))
-#define CONSOLE_BUF_LEN     32
+#define CONSOLE_BUF_LEN     100
+#define INCREMENT_IDX(idx)  ((idx) = ((idx) + 1 >= CONSOLE_BUF_LEN) ? 0 : ((idx) + 1))
 #define MAX_COMMAND_LEN     25
 #define MIN(a, b)           (((a) < (b)) ? (a) : (b))
 #define NSERVOS             5
@@ -61,13 +62,49 @@ static my_servo_t _arm_joints[NSERVOS] = {
     {SERVO_HAND, SERVO_DEFAULT_ANGLE, &__s4, PIN_SERVO_HAND},
 };
 
-console_command_t _console_commands[] = {
+static console_command_t _console_commands[] = {
     {"help", _cmd_cb_help, "Print help message"},
     {"servo", _cmd_cb_servo, "Move servo to angle"},
     {"led", _cmd_cb_led, "Turn LED on or off"},
 };
 
+static char _console_buf[CONSOLE_BUF_LEN];
+
 ///////////////////////// FUNCTIONS ///////////////////////////////////
+/**
+ * Reads out everything currently in the buffer and checks if it is a valid command.
+ */
+static void _process_cmdbuffer(const uint16_t bufidx, uint16_t *readidx) {
+    static char cmdbuf[MAX_COMMAND_LEN];
+    static char tmpbuf[MAX_COMMAND_LEN];
+    static char tokbuf[MAX_COMMAND_LEN];
+    memset(cmdbuf, '\0', ARRAY_LEN(cmdbuf));
+    memset(tmpbuf, '\0', ARRAY_LEN(tmpbuf));
+    memset(tokbuf, '\0', ARRAY_LEN(tokbuf));
+
+    while (*readidx < bufidx) {
+        /* Move everything that we haven't examined yet from the command buffer into the tmpbuf */
+        unsigned int n = MIN(bufidx - *readidx, ARRAY_LEN(tmpbuf));
+        for (unsigned int i = 0; i < n; i++) {
+            tmpbuf[i] = _console_buf[*readidx];
+            INCREMENT_IDX(*readidx);
+        }
+
+        memcpy(tokbuf, tmpbuf, ARRAY_LEN(tokbuf));
+
+        /* Check if tmpbuf holds a valid command */
+        for (unsigned int i = 0; i < ARRAY_LEN(_console_commands); i++) {
+            /* Tokenize the tokbuf by whitespace */
+            char *cmd = strtok(tokbuf, " \n\r");
+            if ((cmd != NULL) && (strncmp(_console_commands[i].str, cmd, MIN(bufidx, MAX_COMMAND_LEN)) == 0)) {
+                _console_commands[i].func((const char *)tmpbuf, ARRAY_LEN(tmpbuf));
+                break;
+            }
+            memcpy(tokbuf, tmpbuf, ARRAY_LEN(tokbuf));
+        }
+    }
+}
+
 /**
  * Checks the UART for any waiting bytes, reads them all into an internal
  * buffer, then compares all characters in that buffer up to the first
@@ -75,35 +112,24 @@ console_command_t _console_commands[] = {
  * If there is a match, fires that command's callback synchronously.
  */
 static void _check_console(void) {
-    static uint8_t console_buf[CONSOLE_BUF_LEN];
     static uint16_t bufidx = 0;
+    static uint16_t readidx = 0;
 
-    char cmdbuf[MAX_COMMAND_LEN];
-    char tmpbuf[MAX_COMMAND_LEN];
-
-    /* Get the next byte */
+    /* Get any waiting bytes and read them into the circular buffer */
+    bool newline_present = false;
     while (Serial.available()) {
-        console_buf[bufidx++] = Serial.read();
+        char c = Serial.read();
+        if (c == '\n')
+            newline_present = true;
 
-        // Prevent overflow
-        if (bufidx >= CONSOLE_BUF_LEN)
-            bufidx = 0;
-
-        console_buf[bufidx] = '\0'; // put the str term byte right after the last byte we know is valid
+        _console_buf[bufidx] = c;
+        INCREMENT_IDX(bufidx);
+        _console_buf[bufidx] = '\0'; // put the str term byte right after the last byte we know is valid
     }
 
-    /* Check if the buffer holds a valid command */
-    for (uint8_t i = 0; i < ARRAY_LEN(_console_commands); i++) {
-        /* Buffer may contain a valid command plus args - take everything up to the first space or \0 */
-        unsigned int n = MIN(bufidx, MAX_COMMAND_LEN);
-        memcpy(tmpbuf, console_buf, sizeof(char) * n);
-        char *cmd = strtok(tmpbuf, " \n\r");
-        if ((cmd != NULL) && (strncmp(_console_commands[i].str, cmd, MIN(bufidx, MAX_COMMAND_LEN)) == 0)) {
-            _console_commands[i].func((const char *)console_buf, ARRAY_LEN(console_buf));
-            memset(console_buf, '\0', sizeof(char) * ARRAY_LEN(console_buf));
-            break;
-        }
-    }
+    /* If there is a newline present, the user has finished entering a command. Check if it is valid */
+    if (newline_present)
+        _process_cmdbuffer(bufidx, &readidx);
 }
 
 /**
@@ -157,7 +183,7 @@ static void _cmd_cb_led(const char *consolebuf, uint16_t buflen) {
             } else if (strncmp(tok, "off", ARRAY_LEN(buf)) == 0) {
                 digitalWrite(PIN_LED, LOW);
             } else {
-                Serial.print("USAGE: led <on/off>");
+                Serial.println("USAGE: led <on/off>");
             }
             return;
         } else {
@@ -165,7 +191,7 @@ static void _cmd_cb_led(const char *consolebuf, uint16_t buflen) {
         }
 
         index++;
-        tok = strtok(buf, " ");
+        tok = strtok(NULL, " \n\r");
     }
 }
 
@@ -176,7 +202,7 @@ static void _cmd_cb_servo(const char *consolebuf, uint16_t buflen) {
     servo_id_t servoid;
 
     int index = 0;
-    char *tok = strtok(buf, " ");
+    char *tok = strtok(buf, " \n\r");
     while (tok != NULL) {
         if (index == 0) {
             // Should be 'servo'
@@ -184,7 +210,7 @@ static void _cmd_cb_servo(const char *consolebuf, uint16_t buflen) {
             // Parse out the servo id
             int a = atoi(tok);
             if ((a < 0) || (a >= NSERVOS)) {
-                Serial.print("Illegal servo ID");
+                Serial.println("Illegal servo ID");
                 return;
             } else {
                 servoid = (servo_id_t)a;
@@ -192,8 +218,8 @@ static void _cmd_cb_servo(const char *consolebuf, uint16_t buflen) {
         } else if (index == 2) {
             // Parse out the angle and execute the command
             int a = atoi(tok);
-            if ((a < 0) || (a > 360)) {
-                Serial.print("Illegal angle");
+            if ((a < 0) || (a > 180)) {
+                Serial.println("Illegal angle");
                 return;
             } else {
                 _arm_joints[servoid].angle = a;
@@ -204,6 +230,9 @@ static void _cmd_cb_servo(const char *consolebuf, uint16_t buflen) {
         }
 
         index++;
-        tok = strtok(buf, " ");
+        tok = strtok(NULL, " ");
     }
+
+    if (index != 3)
+        Serial.println("USAGE: servo <id> <angle>");
 }
