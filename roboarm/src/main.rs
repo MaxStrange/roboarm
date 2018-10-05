@@ -6,56 +6,77 @@
  * Go check out that project, since it's awesome.
  */
 
-//extern crate cortex_m;
+/* Externs */
+extern crate cortex_m;
 #[macro_use]                // Brings in entry! macro from Cortex Runtime
 extern crate cortex_m_rt;   // Brings in the Cortex Runtime, including panic stuff
 //#[macro_use]
 extern crate tm4c123x_hal;  // Brings in SVD2Rust stuff, including ISR default implementations and peripheral structs
 
+/* Use Statements */
 use core::panic::PanicInfo;
 use tm4c123x_hal as tm;
 use tm4c123x_hal::prelude::*;
 use tm4c123x_hal::serial::{NewlineMode, Serial};
 use tm4c123x_hal::sysctl;
 
+/* Mod Declarations */
+mod commands;
 mod console;
+mod leds;
+mod servos;
 
 
-#[entry]
-fn main() -> ! {
-    let mut periph = tm4c123x_hal::Peripherals::take().unwrap();
-    // Now divvy out periph
+fn init() -> (console::Console, tm::delay::Delay, leds::SystemLeds) {
+    /* Take all the peripherals in the system */
+    let periph = tm4c123x_hal::Peripherals::take().unwrap();
 
+    /* Pull out the systemctl block */
     let mut sc = periph.SYSCTL.constrain();
-    // Now divvy out sc
 
+    /* Set up the clocks */
     sc.clock_setup.oscillator = sysctl::Oscillator::Main(
         sysctl::CrystalFrequency::_16mhz,
         sysctl::SystemClock::UsePll(sysctl::PllOutputFrequency::_80_00mhz),
     );
     let clocks = sc.clock_setup.freeze();
 
-    // Get the uart stuff
+    /* Initialize the UART */
     let uart0 = periph.UART0;
     let mut porta = periph.GPIO_PORTA.split(&sc.power_control);
-    let uart0_tx = porta.pa1.into_af_push_pull::<tm4c123x_hal::gpio::AF1>(&mut porta.control);
-    let uart0_rx = porta.pa0.into_af_push_pull::<tm4c123x_hal::gpio::AF1>(&mut porta.control);
-    let mut uart = Serial::uart0(uart0, uart0_tx, uart0_rx, (), (), 115200_u32.bps(), NewlineMode::SwapLFtoCRLF, &clocks, &sc.power_control);
+    let uart0_tx = porta.pa1.into_af_push_pull::<tm::gpio::AF1>(&mut porta.control);
+    let uart0_rx = porta.pa0.into_af_push_pull::<tm::gpio::AF1>(&mut porta.control);
+    let uart = Serial::uart0(uart0, uart0_tx, uart0_rx, (), (), 115200_u32.bps(), NewlineMode::SwapLFtoCRLF, &clocks, &sc.power_control);
 
-    let mut coreperiph = tm4c123x_hal::CorePeripherals::take().unwrap();
-    // Now divvy out coreperiph
+    /* Initialize the LEDs */
+    let mut portf = periph.GPIO_PORTF.split(&sc.power_control);
+    let red = portf.pf1.into_af_push_pull::<tm::gpio::AF1>(&mut portf.control);
+    let green = portf.pf3.into_af_push_pull::<tm::gpio::AF1>(&mut portf.control);
+    let blue = portf.pf2.into_af_push_pull::<tm::gpio::AF1>(&mut portf.control);
 
+    /* Get the core peripherals and then start divvying them out */
+    let mut coreperiph = tm::CorePeripherals::take().unwrap();
 
-    // Set up the interrupts
-    let mut nvic = coreperiph.NVIC;
+    /* Take the systick block */
+    let systick = coreperiph.SYST;
+
+    /* Set up all the interrupts */
     // TODO
+    //let mut nvic = coreperiph.NVIC;
 
-    // TODO: enable Ssi?
+    /* Return all the initialized singletons */
+    let con = console::Console::new(uart).unwrap();
+    let delay = tm::delay::Delay::new(systick, &clocks);
+    let sysleds = leds::SystemLeds::new(red, green, blue).unwrap();
 
-    let mut con = console::Console::new(uart).unwrap();
+    (con, delay, sysleds)
+}
 
+#[entry]
+fn main() -> ! {
+    let (mut con, delay, sysleds) = init();
     loop {
-        con.serial.write_all("Hello, World!".as_bytes());
+        con.run_statemachine();
     }
 }
 

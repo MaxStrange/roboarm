@@ -1,3 +1,4 @@
+use super::commands::Command;
 use core::sync::atomic;
 use tm4c123x_hal as tm;
 use tm4c123x_hal::prelude::*;
@@ -14,7 +15,7 @@ static CHECKED_OUT: atomic::AtomicBool = atomic::ATOMIC_BOOL_INIT;
 /// by using the appropriate builder pattern, then to invoke the console's run() function
 /// each tick of the main loop.
 pub struct Console {
-    pub serial: Serial<tm::serial::UART0, TxPin, RxPin, (), ()>,
+    serial: Serial<tm::serial::UART0, TxPin, RxPin, (), ()>,
 }
 
 impl Console {
@@ -24,5 +25,11 @@ impl Console {
         } else {
             Some(Console{serial: s})
         }
+    }
+
+    pub fn run_statemachine(&mut self) -> Option<Command> {
+        // TODO: Return a command if there is a valid one in the UART buffer
+        self.serial.write_all("Hello, World!\n".as_bytes());
+        None
     }
 }
