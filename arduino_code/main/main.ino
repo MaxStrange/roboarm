@@ -62,6 +62,8 @@ static my_servo_t _arm_joints[NSERVOS] = {
     {SERVO_HAND, SERVO_DEFAULT_ANGLE, &__s4, PIN_SERVO_HAND},
 };
 
+static bool _servo_update_flags[ARRAY_LEN(_arm_joints)];
+
 static console_command_t _console_commands[] = {
     {"help", _cmd_cb_help, "Print help message"},
     {"servo", _cmd_cb_servo, "Move servo to angle"},
@@ -137,7 +139,10 @@ static void _check_console(void) {
  */
 static void _manage_servos(void) {
     for (int i = 0; i < NSERVOS; i++) {
-        _arm_joints[i].servo->write(_arm_joints[i].angle);
+        if (_servo_update_flags[i]) {
+            _arm_joints[i].servo->write(_arm_joints[i].angle);
+            _servo_update_flags[i] = false;
+        }
     }
 }
 
@@ -223,6 +228,7 @@ static void _cmd_cb_servo(const char *consolebuf, uint16_t buflen) {
                 return;
             } else {
                 _arm_joints[servoid].angle = a;
+                _servo_update_flags[servoid] = true;
                 return;
             }
         } else {

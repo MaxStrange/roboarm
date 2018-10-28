@@ -6,11 +6,6 @@ description = "Simple robot arm for a class for my Master's program at UW Bothel
 license = "MIT OR Apache-2.0"
 repository = "https://MaxStrange/roboarm"
 
-[profile.release]
-lto = true
-debug = true
-opt-level = "s"
-
 [dependencies]
 cortex-m = "0.5.6"
 heapless = "0.3.7"

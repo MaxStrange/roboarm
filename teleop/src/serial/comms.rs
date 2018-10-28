@@ -28,12 +28,12 @@ pub mod comms {
     fn write_to_port(port: &mut Box<serialport::SerialPort>, cmd: commands::Command) -> io::Result<usize> {
         match cmd {
             commands::Command::Led(on) => {
-                let onoff = if on { 1 } else { 0 };
-                let msg = format!("led {}", onoff);
+                let onoff = if on { "on" } else { "off" };
+                let msg = format!("led {}\n", onoff);
                 port.write(msg.as_bytes())
             },
             commands::Command::Servo(id, angle) => {
-                let msg = format!("servo {} {}", id as u8, angle);
+                let msg = format!("servo {} {}\n", id as u8, angle);
                 port.write(msg.as_bytes())
             },
             commands::Command::Quit => panic!("Should not have gotten quit command in 'write_to_port'"),
