@@ -1,0 +1,11 @@
+[workspace]
+
+members = [
+    "roboarm",
+    "teleop",
+]
+
+[profile.release]
+lto = true
+debug = true
+opt-level = "s"
