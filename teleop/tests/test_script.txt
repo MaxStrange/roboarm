@@ -1,5 +1,9 @@
-servo 1 2
-servo 2 3
+servo 0 45
+servo 1 35
+servo 2 125
 led on
 led off
-servo 2 3
+servo 2 145
+servo 1 20
+servo 0 75
+home

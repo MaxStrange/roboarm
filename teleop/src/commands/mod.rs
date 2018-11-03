@@ -1,6 +1,6 @@
 use std::path;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum ServoId {
     Base,
     Shoulder,
@@ -32,7 +32,7 @@ pub fn print_help() {
     println!("Home: Sends all servos to default locations");
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Command {
     Help,
     Quit,
@@ -132,6 +132,8 @@ impl Command {
 
         assert!(tokens.len() == 3);
         // If the third token is not a valid angle (0 to 180), that's also an error
+        // Note that not all angles are supported on all servos, and since we are
+        // not capturing input from the Arduino's serial, we won't get the error message.
         let angle = match tokens[2].parse::<f64>() {
             Ok(val) if val <= 180.0 && val >= 0.0 => val,
             Err(_) => { return Err("Need a numeric value for angle"); },

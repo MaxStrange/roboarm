@@ -7,8 +7,13 @@ rust:
 
 cache: cargo
 
+matrix:
+  allow_failures:
+    - rust: nightly
+  fast_finish: true
+
 install:
-  - rustup default nightly  # At some point, this will not be necessary
+  - rustup default beta # At some point, this will not be necessary
   - sudo apt-get install gcc-arm-none-eabi
   - sudo apt-get install libudev-dev
   - rustup target add thumbv7em-none-eabihf

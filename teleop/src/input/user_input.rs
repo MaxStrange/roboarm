@@ -4,6 +4,8 @@ pub mod user_input {
     use std::io;
     use std::io::BufRead;
     use std::sync::mpsc;
+    use std::thread;
+    use std::time;
 
     /// Reads lines from the user until the quit command is given.
     /// Attempts to parse the line into a valid command. If it fails,
@@ -46,6 +48,7 @@ pub mod user_input {
                 false
             },
             _ => {
+                println!("Sending command {:?}", cmd);
                 tx.send(cmd).expect("Couldn't send the message to the Serial thread.");
                 false
             }
@@ -74,9 +77,12 @@ pub mod user_input {
             },
         }
 
-        // Try to execute each command
+        // Try to execute each command. Note that we need to wait a moment between commands
+        // since the command parser on the Arduino is not meant to take in commands faster than
+        // they can be typed
         for c in cmds {
             execute_command(c, tx);
+            thread::sleep(time::Duration::from_millis(200));
         }
     }
 }

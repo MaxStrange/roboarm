@@ -3,12 +3,12 @@ extern crate serialport;
 mod commands;
 
 mod input;
-use input::user_input::user_input;
+use self::input::user_input::user_input;
 
 mod serial;
-use serial::comms::comms;
-use serial::port::portcomms;
-use serial::testport;
+use self::serial::comms::comms;
+use self::serial::port::portcomms;
+use self::serial::testport;
 
 use std::sync::mpsc::{Sender, Receiver};
 use std::sync::mpsc;

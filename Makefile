@@ -28,8 +28,8 @@ gdb:
 run-teleop:
 	$(MAKE) -C teleop run
 
-.PHONY: ci
-ci: teleop roboarm
+.PHONY: ci  # We currently don't build the roboarm application, since I'll never get around to doing it in Rust :(
+ci: teleop
 
 .PHONY: date
 date:

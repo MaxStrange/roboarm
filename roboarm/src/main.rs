@@ -12,9 +12,9 @@ extern crate cortex_m;
 extern crate cortex_m_rt;   // Brings in the Cortex Runtime, including panic stuff
 //#[macro_use]
 extern crate tm4c123x_hal;  // Brings in SVD2Rust stuff, including ISR default implementations and peripheral structs
+extern crate panic_halt;
 
 /* Use Statements */
-use core::panic::PanicInfo;
 use tm4c123x_hal as tm;
 use tm4c123x_hal::prelude::*;
 use tm4c123x_hal::serial::{NewlineMode, Serial};
@@ -78,9 +78,4 @@ fn main() -> ! {
     loop {
         con.run_statemachine();
     }
-}
-
-#[panic_handler]
-fn panic(_panic: &PanicInfo<'_>) -> ! {
-    loop {}
 }

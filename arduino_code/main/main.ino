@@ -10,23 +10,46 @@ static void _cmd_cb_servo(const char *consolebuf, uint16_t buflen);
 static void _cmd_cb_home(const char *consolebuf, uint16_t buflen);
 
 ///////////////////////// Defines ///////////////////////////////////
-#define ARRAY_LEN(a)           ((sizeof (a))/(sizeof (a)[0]))
-#define CONSOLE_BUF_LEN        100
-#define INCREMENT_IDX(idx)     ((idx) = ((idx) + 1 >= CONSOLE_BUF_LEN) ? 0 : ((idx) + 1))
-#define MAX_COMMAND_LEN        25
-#define MIN(a, b)              (((a) < (b)) ? (a) : (b))
-#define NSERVOS                5
-#define DEFAULT_ANGLE_BASE     90
-#define DEFAULT_ANGLE_SHOULDER 90
-#define DEFAULT_ANGLE_ELBOW    90
-#define DEFAULT_ANGLE_WRIST    90
-#define DEFAULT_ANGLE_HAND     90
-#define PIN_SERVO_BASE         3
-#define PIN_SERVO_SHOULDER     5
-#define PIN_SERVO_ELBOW        6
-#define PIN_SERVO_WRIST        9
-#define PIN_SERVO_HAND         10
-#define PIN_LED                13
+/* Some useful macros */
+#define ARRAY_LEN(a)                ((sizeof (a))/(sizeof (a)[0]))
+#define INCREMENT_IDX(idx)          ((idx) = ((idx) + 1 >= CONSOLE_BUF_LEN) ? 0 : ((idx) + 1))
+#define MIN(a, b)                   (((a) < (b)) ? (a) : (b))
+
+/** The length of the console */
+#define CONSOLE_BUF_LEN             100
+
+/** The maximum allowed command length */
+#define MAX_COMMAND_LEN             25
+
+/** The number of servos on the robot arm */
+#define NSERVOS                     5
+
+/* Default angles (starting angles and angles the arm homes to) */
+#define DEFAULT_ANGLE_BASE          90
+#define DEFAULT_ANGLE_SHOULDER      10
+#define DEFAULT_ANGLE_ELBOW         155
+#define DEFAULT_ANGLE_WRIST         90
+#define DEFAULT_ANGLE_HAND          90
+
+/* Pin numbers for servos */
+#define PIN_SERVO_BASE              3
+#define PIN_SERVO_SHOULDER          5
+#define PIN_SERVO_ELBOW             6
+#define PIN_SERVO_WRIST             9
+#define PIN_SERVO_HAND              10
+#define PIN_LED                     13
+
+/* Limits to keep the robot from destroying itself - empirically determined */
+#define LOWER_LIMIT_ANGLE_BASE      0
+#define UPPER_LIMIT_ANGLE_BASE      180
+#define LOWER_LIMIT_ANGLE_SHOULDER  0
+#define UPPER_LIMIT_ANGLE_SHOULDER  50
+#define LOWER_LIMIT_ANGLE_ELBOW     100
+#define UPPER_LIMIT_ANGLE_ELBOW     180
+#define LOWER_LIMIT_ANGLE_WRIST     80
+#define UPPER_LIMIT_ANGLE_WRIST     100
+#define LOWER_LIMIT_ANGLE_HAND      0
+#define UPPER_LIMIT_ANGLE_HAND      180
 
 ///////////////////////// Typedefs ///////////////////////////////////
 typedef enum {
@@ -42,6 +65,8 @@ typedef struct {
     uint16_t angle;
     Servo *servo;
     uint8_t pin;
+    uint16_t lower_limit;
+    uint16_t upper_limit;
 } my_servo_t;
 
 typedef void (*callback_t)(const char *consolebuf, uint16_t buflen);
@@ -60,11 +85,11 @@ Servo __s3;
 Servo __s4;
 
 static my_servo_t _arm_joints[NSERVOS] = {
-    {SERVO_BASE, DEFAULT_ANGLE_BASE, &__s0, PIN_SERVO_BASE},
-    {SERVO_SHOULDER, DEFAULT_ANGLE_SHOULDER, &__s1, PIN_SERVO_SHOULDER},
-    {SERVO_ELBOW, DEFAULT_ANGLE_ELBOW, &__s2, PIN_SERVO_ELBOW},
-    {SERVO_WRIST, DEFAULT_ANGLE_WRIST, &__s3, PIN_SERVO_WRIST},
-    {SERVO_HAND, DEFAULT_ANGLE_HAND, &__s4, PIN_SERVO_HAND},
+    {SERVO_BASE, DEFAULT_ANGLE_BASE, &__s0, PIN_SERVO_BASE, LOWER_LIMIT_ANGLE_BASE, UPPER_LIMIT_ANGLE_BASE},
+    {SERVO_SHOULDER, DEFAULT_ANGLE_SHOULDER, &__s1, PIN_SERVO_SHOULDER, LOWER_LIMIT_ANGLE_SHOULDER, UPPER_LIMIT_ANGLE_SHOULDER},
+    {SERVO_ELBOW, DEFAULT_ANGLE_ELBOW, &__s2, PIN_SERVO_ELBOW, LOWER_LIMIT_ANGLE_ELBOW, UPPER_LIMIT_ANGLE_ELBOW},
+    {SERVO_WRIST, DEFAULT_ANGLE_WRIST, &__s3, PIN_SERVO_WRIST, LOWER_LIMIT_ANGLE_WRIST, UPPER_LIMIT_ANGLE_WRIST},
+    {SERVO_HAND, DEFAULT_ANGLE_HAND, &__s4, PIN_SERVO_HAND, LOWER_LIMIT_ANGLE_HAND, UPPER_LIMIT_ANGLE_HAND},
 };
 
 static bool _servo_update_flags[ARRAY_LEN(_arm_joints)];
@@ -270,8 +295,11 @@ static void _cmd_cb_servo(const char *consolebuf, uint16_t buflen) {
         } else if (index == 2) {
             // Parse out the angle and execute the command
             int a = atoi(tok);
-            if ((a < 0) || (a > 180)) {
+            if ((a < _arm_joints[servoid].lower_limit) || (a > _arm_joints[servoid].upper_limit)) {
                 Serial.println("Illegal angle");
+                Serial.print("Angle for id "); Serial.print(id); Serial.print(" should be between ");
+                Serial.print(_arm_joints[servoid].lower_limt); Serial.print(" and ");
+                Serial.println(_arm_joints[servoid].upper_limit);
                 return;
             } else {
                 _servo_goto(servoid, a);
