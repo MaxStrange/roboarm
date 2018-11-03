@@ -29,6 +29,7 @@ pub fn print_help() {
     println!("Led: <on/off>");
     println!("Servo: <id> <angle - 0 to 180>");
     println!("Script: <path to script>");
+    println!("Home: Sends all servos to default locations");
 }
 
 #[derive(Clone)]
@@ -38,6 +39,7 @@ pub enum Command {
     Led(bool),              // on/off
     Servo(ServoId, u16),    // ServoID, angle
     Script(String),         // fpath
+    Home,
 }
 
 impl Command {
@@ -58,6 +60,7 @@ impl Command {
             "led" => Command::led_from_string(line),
             "servo" => Command::servo_from_string(line),
             "script" => Command::script_from_string(line),
+            "home" => Ok(Command::Home),
             _ => Err("Malformed command"),
         }
     }

@@ -20,6 +20,7 @@ pub mod comms {
                 commands::Command::Script(_) => panic!("Should not have gotten script command on this thread."),
                 commands::Command::Led(_on) => { write_to_port(&mut port, cmd).unwrap(); },
                 commands::Command::Servo(_id, _angle) => { write_to_port(&mut port, cmd).unwrap(); },
+                commands::Command::Home => { write_to_port(&mut port, cmd).unwrap(); },
             }
         }
     }
@@ -39,6 +40,10 @@ pub mod comms {
             commands::Command::Quit => panic!("Should not have gotten quit command in 'write_to_port'"),
             commands::Command::Script(_) => panic!("Should not have gotten script command in 'write_to_port'"),
             commands::Command::Help => panic!("Should not have gotten help command in 'write_to_port'"),
+            commands::Command::Home => {
+                let msg = "home\n";
+                port.write(msg.as_bytes())
+            }
         }
     }
 }

@@ -7,21 +7,26 @@
 static void _cmd_cb_help(const char *consolebuf, uint16_t buflen);
 static void _cmd_cb_led(const char *consolebuf, uint16_t buflen);
 static void _cmd_cb_servo(const char *consolebuf, uint16_t buflen);
+static void _cmd_cb_home(const char *consolebuf, uint16_t buflen);
 
 ///////////////////////// Defines ///////////////////////////////////
-#define ARRAY_LEN(a)        ((sizeof (a))/(sizeof (a)[0]))
-#define CONSOLE_BUF_LEN     100
-#define INCREMENT_IDX(idx)  ((idx) = ((idx) + 1 >= CONSOLE_BUF_LEN) ? 0 : ((idx) + 1))
-#define MAX_COMMAND_LEN     25
-#define MIN(a, b)           (((a) < (b)) ? (a) : (b))
-#define NSERVOS             5
-#define SERVO_DEFAULT_ANGLE 90
-#define PIN_SERVO_BASE      3
-#define PIN_SERVO_SHOULDER  5
-#define PIN_SERVO_ELBOW     6
-#define PIN_SERVO_WRIST     9
-#define PIN_SERVO_HAND      10
-#define PIN_LED             13
+#define ARRAY_LEN(a)           ((sizeof (a))/(sizeof (a)[0]))
+#define CONSOLE_BUF_LEN        100
+#define INCREMENT_IDX(idx)     ((idx) = ((idx) + 1 >= CONSOLE_BUF_LEN) ? 0 : ((idx) + 1))
+#define MAX_COMMAND_LEN        25
+#define MIN(a, b)              (((a) < (b)) ? (a) : (b))
+#define NSERVOS                5
+#define DEFAULT_ANGLE_BASE     90
+#define DEFAULT_ANGLE_SHOULDER 90
+#define DEFAULT_ANGLE_ELBOW    90
+#define DEFAULT_ANGLE_WRIST    90
+#define DEFAULT_ANGLE_HAND     90
+#define PIN_SERVO_BASE         3
+#define PIN_SERVO_SHOULDER     5
+#define PIN_SERVO_ELBOW        6
+#define PIN_SERVO_WRIST        9
+#define PIN_SERVO_HAND         10
+#define PIN_LED                13
 
 ///////////////////////// Typedefs ///////////////////////////////////
 typedef enum {
@@ -55,11 +60,11 @@ Servo __s3;
 Servo __s4;
 
 static my_servo_t _arm_joints[NSERVOS] = {
-    {SERVO_BASE, SERVO_DEFAULT_ANGLE, &__s0, PIN_SERVO_BASE},
-    {SERVO_SHOULDER, SERVO_DEFAULT_ANGLE, &__s1, PIN_SERVO_SHOULDER},
-    {SERVO_ELBOW, SERVO_DEFAULT_ANGLE, &__s2, PIN_SERVO_ELBOW},
-    {SERVO_WRIST, SERVO_DEFAULT_ANGLE, &__s3, PIN_SERVO_WRIST},
-    {SERVO_HAND, SERVO_DEFAULT_ANGLE, &__s4, PIN_SERVO_HAND},
+    {SERVO_BASE, DEFAULT_ANGLE_BASE, &__s0, PIN_SERVO_BASE},
+    {SERVO_SHOULDER, DEFAULT_ANGLE_SHOULDER, &__s1, PIN_SERVO_SHOULDER},
+    {SERVO_ELBOW, DEFAULT_ANGLE_ELBOW, &__s2, PIN_SERVO_ELBOW},
+    {SERVO_WRIST, DEFAULT_ANGLE_WRIST, &__s3, PIN_SERVO_WRIST},
+    {SERVO_HAND, DEFAULT_ANGLE_HAND, &__s4, PIN_SERVO_HAND},
 };
 
 static bool _servo_update_flags[ARRAY_LEN(_arm_joints)];
@@ -68,6 +73,7 @@ static console_command_t _console_commands[] = {
     {"help", _cmd_cb_help, "Print help message"},
     {"servo", _cmd_cb_servo, "Move servo to angle"},
     {"led", _cmd_cb_led, "Turn LED on or off"},
+    {"home", _cmd_cb_home, "Move all servos to home location"},
 };
 
 static char _console_buf[CONSOLE_BUF_LEN];
@@ -84,14 +90,33 @@ static void _process_cmdbuffer(const uint16_t bufidx, uint16_t *readidx) {
     memset(tmpbuf, '\0', ARRAY_LEN(tmpbuf));
     memset(tokbuf, '\0', ARRAY_LEN(tokbuf));
 
-    while (*readidx < bufidx) {
+    Serial.println("Newline present. Processing command.");
+    Serial.print("  -> Readidx: "); Serial.println(*readidx);
+    Serial.print("  -> bufidx:  "); Serial.println(bufidx);
+
+    while (*readidx != bufidx) {
         /* Move everything that we haven't examined yet from the command buffer into the tmpbuf */
-        unsigned int n = MIN(bufidx - *readidx, ARRAY_LEN(tmpbuf));
+
+        /* If we are not on the same lap, we need to unroll the buffer into tmpbuf appropriately */
+        unsigned int n;
+        if (*readidx > bufidx)
+            n = bufidx + (ARRAY_LEN(_console_buf) - *readidx);
+        else
+            n = bufidx - *readidx;
+
+        // Make sure we don't overrun our tmpbuf
+        n = MIN(n, ARRAY_LEN(tmpbuf));
+
+        /* Now copy everything into the tmpbuf */
         for (unsigned int i = 0; i < n; i++) {
             tmpbuf[i] = _console_buf[*readidx];
             INCREMENT_IDX(*readidx);
         }
 
+        Serial.println("  -> Our tmpbuf looks like:");
+        Serial.println(tmpbuf);
+
+        /* Now copy everything from tmpbuf into tokbuf, which we will use to tokenize */
         memcpy(tokbuf, tmpbuf, ARRAY_LEN(tokbuf));
 
         /* Check if tmpbuf holds a valid command */
@@ -125,7 +150,9 @@ static void _check_console(void) {
             newline_present = true;
 
         _console_buf[bufidx] = c;
+        Serial.print("Add to idx "); Serial.println(bufidx);
         INCREMENT_IDX(bufidx);
+        Serial.print("Put null at "); Serial.println(bufidx);
         _console_buf[bufidx] = '\0'; // put the str term byte right after the last byte we know is valid
     }
 
@@ -146,18 +173,38 @@ static void _manage_servos(void) {
     }
 }
 
+/**
+ * Set servo with ID `id` to `angle` to be moved on the next iteration of the loop.
+ */
+static void _servo_goto(servo_id_t id, uint16_t angle) {
+    static char buf[100];
+    snprintf(buf, ARRAY_LEN(buf), "Sending %d to %d", id, angle);
+    Serial.println(buf);
+    _arm_joints[id].angle = angle;
+    _servo_update_flags[id] = true;
+}
+
 void setup() {
+    // Set up the LED
     pinMode(PIN_LED, OUTPUT);
+
+    // Set up the UART
     Serial.begin(115200);
 
+    // Set up all the joints
     for (int i = 0; i < NSERVOS; i++) {
         _arm_joints[i].servo->attach(_arm_joints[i].pin);
     }
+
+    // Reset all servos to their home locations
+    _cmd_cb_home("", 0);
 }
 
 void loop() {
     // Get a command over UART and interpret it
     _check_console();
+
+    // Move any servos that have their update-pending flag set
     _manage_servos();
 }
 
@@ -227,8 +274,7 @@ static void _cmd_cb_servo(const char *consolebuf, uint16_t buflen) {
                 Serial.println("Illegal angle");
                 return;
             } else {
-                _arm_joints[servoid].angle = a;
-                _servo_update_flags[servoid] = true;
+                _servo_goto(servoid, a);
                 return;
             }
         } else {
@@ -241,4 +287,12 @@ static void _cmd_cb_servo(const char *consolebuf, uint16_t buflen) {
 
     if (index != 3)
         Serial.println("USAGE: servo <id> <angle>");
+}
+
+static void _cmd_cb_home(const char *consolebuf, uint16_t buflen) {
+    _servo_goto(SERVO_BASE, DEFAULT_ANGLE_BASE);
+    _servo_goto(SERVO_ELBOW, DEFAULT_ANGLE_ELBOW);
+    _servo_goto(SERVO_HAND, DEFAULT_ANGLE_HAND);
+    _servo_goto(SERVO_SHOULDER, DEFAULT_ANGLE_SHOULDER);
+    _servo_goto(SERVO_WRIST, DEFAULT_ANGLE_WRIST);
 }
