@@ -1,4 +1,6 @@
 roboarm/target
 teleop/target
+experiment/target
 target
 **/*.rs.bk
+.vscode
