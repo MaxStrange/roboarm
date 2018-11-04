@@ -7,18 +7,15 @@
  */
 
 /* Externs */
-extern crate cortex_m;
-#[macro_use]                // Brings in entry! macro from Cortex Runtime
-extern crate cortex_m_rt;   // Brings in the Cortex Runtime, including panic stuff
-//#[macro_use]
-extern crate tm4c123x_hal;  // Brings in SVD2Rust stuff, including ISR default implementations and peripheral structs
 extern crate panic_halt;
 
 /* Use Statements */
 use tm4c123x_hal as tm;
-use tm4c123x_hal::prelude::*;
-use tm4c123x_hal::serial::{NewlineMode, Serial};
-use tm4c123x_hal::sysctl;
+
+use cortex_m_rt::entry;
+use self::tm::prelude::*;
+use self::tm::serial::{NewlineMode, Serial};
+use self::tm::sysctl;
 
 /* Mod Declarations */
 mod commands;
