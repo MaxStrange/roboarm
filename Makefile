@@ -2,6 +2,7 @@
 all:
 	$(MAKE) -C roboarm
 	$(MAKE) -C teleop
+	$(MAKE) -C experiment
 
 .PHONY: roboarm
 roboarm:
@@ -11,10 +12,16 @@ roboarm:
 teleop:
 	$(MAKE) -C teleop
 
+.PHONY: experiment
+experiment:
+	$(MAKE) -C experiment
+
 .PHONY: clean
 clean:
 	$(MAKE) -C roboarm clean
 	$(MAKE) -C teleop clean
+	$(MAKE) -C experiment clean
+	cargo clean
 
 .PHONY: openocd
 openocd:
