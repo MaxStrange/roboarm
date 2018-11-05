@@ -3,6 +3,7 @@
 members = [
     "roboarm",
     "teleop",
+    "experiment",
 ]
 
 [profile.release]

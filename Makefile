@@ -35,8 +35,12 @@ gdb:
 run-teleop:
 	$(MAKE) -C teleop run
 
+.PHONY: run
+run:
+	$(MAKE) -C experiment run
+
 .PHONY: ci
-ci: roboarm teleop
+ci: roboarm teleop experiment
 
 .PHONY: date
 date:
