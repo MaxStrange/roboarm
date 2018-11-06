@@ -20,6 +20,7 @@ extern crate config;
 
 /* Modules */
 mod expconfig;
+mod expresults;
 
 /* Use statements */
 use std::env;
@@ -27,6 +28,7 @@ use std::path;
 use std::process;
 use std::collections::{hash_map, HashMap};
 use self::expconfig::{Mode, ExperimentConfig};
+use self::expresults::ExperimentResults;
 
 fn main() {
     let usage = "Need a path to a valid configuration file.";
@@ -76,9 +78,12 @@ fn main() {
     // Now print out the settings as we interpreted them
     let experiment = ExperimentConfig::new(mode, nepisodes, nsteps_per_episode);
 
-    println!("Experiment Configuration: {:?}", experiment);
+    println!("Running Experiment with Configuration:\n{}", experiment);
 
-    // If config.random, do the random experiment
-    // If config.genetic, do the GA experiment
-    // Report results
+    let results = run_experiment(&experiment);
+    println!("{}", results);
+}
+
+fn run_experiment<'a>(experiment: &'a ExperimentConfig) -> ExperimentResults<'a> {
+    ExperimentResults::new(&experiment)
 }
