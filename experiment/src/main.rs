@@ -56,12 +56,12 @@ fn main() {
     let nsteps_per_episode = match setting_strings.entry("nsteps_per_episode".to_string()) {
         hash_map::Entry::Occupied(o) => o,
         hash_map::Entry::Vacant(_) => { println!("Missing nsteps_per_episode in config file."); process::exit(3) },
-    }.get().parse::<i64>().expect("Could not convert nsteps_per_episode to integer.");
+    }.get().parse::<u64>().expect("Could not convert nsteps_per_episode to integer.");
 
     let nepisodes = match setting_strings.entry("nepisodes".to_string()) {
         hash_map::Entry::Occupied(o) => o,
         hash_map::Entry::Vacant(_) => { println!("Missing nepisodes in config file."); process::exit(3) },
-    }.get().parse::<i64>().expect("Could not convert nepisodes to integer.");
+    }.get().parse::<u64>().expect("Could not convert nepisodes to integer.");
 
     let modestr = match setting_strings.entry("mode".to_string()) {
         hash_map::Entry::Occupied(o) => o,
@@ -85,5 +85,19 @@ fn main() {
 }
 
 fn run_experiment<'a>(experiment: &'a ExperimentConfig) -> ExperimentResults<'a> {
-    ExperimentResults::new(&experiment)
+    let mut results = ExperimentResults::new(&experiment);
+
+    for episode in 0..experiment.nepisodes {
+        println!("=== Starting episode {} ===", episode);
+        results.set_episode(episode);
+        run_episode(experiment, &mut results);
+    }
+
+    results
+}
+
+fn run_episode<'a>(experiment: &'a ExperimentConfig, results: &mut ExperimentResults) {
+    for step in 0..experiment.nsteps_per_episode {
+        // TODO: Generate the next set of motor coordinates and write them to results
+    }
 }

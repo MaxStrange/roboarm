@@ -2,9 +2,9 @@ use std::fmt;
 
 #[derive(Debug)]
 pub struct ExperimentConfig {
-    nsteps_per_episode: i64,
-    nepisodes: i64,
-    mode: Mode,
+    pub nsteps_per_episode: u64,
+    pub nepisodes: u64,
+    pub mode: Mode,
 }
 
 #[derive(Debug)]
@@ -14,7 +14,7 @@ pub enum Mode {
 }
 
 impl ExperimentConfig {
-    pub fn new(mode: Mode, nepisodes: i64, nsteps_per_episode: i64) -> Self {
+    pub fn new(mode: Mode, nepisodes: u64, nsteps_per_episode: u64) -> Self {
         ExperimentConfig{mode: mode, nepisodes: nepisodes, nsteps_per_episode: nsteps_per_episode}
     }
 }
