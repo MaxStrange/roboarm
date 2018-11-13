@@ -33,6 +33,10 @@ impl<'a> ExperimentResults<'a> {
             None => String::new(),
         }
     }
+
+    pub fn finish(&mut self) {
+        self.logs.insert(self.cur_episode, self.episode_buffer.clone());
+    }
 }
 
 impl<'a> fmt::Display for ExperimentResults<'a> {

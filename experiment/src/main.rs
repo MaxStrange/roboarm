@@ -32,7 +32,7 @@ use std::process;
 use std::collections::{hash_map, HashMap};
 use std::fmt::Write;
 use std::io::Write as _w; // have to include two different Writes
-use std::fs::File;
+use std::fs;
 
 /* Selfs */
 use self::expconfig::{Mode, ExperimentConfig};
@@ -123,6 +123,7 @@ fn run_experiment<'a>(experiment: &'a ExperimentConfig) -> ExperimentResults<'a>
         run_episode(episode, experiment, &mut results, &mut rng);
     }
 
+    results.finish();
     results
 }
 
@@ -135,7 +136,7 @@ fn run_episode<'a>(episode: u64, experiment: &'a ExperimentConfig, results: &mut
     // Create the script for this episode
     let mut scriptname = String::new();
     write!(scriptname, "tmpscript_episode_{}.txt", episode);
-    let mut f = match File::create(scriptname) {
+    let mut f = match fs::File::create(&scriptname) {
         Err(e) => {
             let mut msg = String::new();
             writeln!(msg, "Could not run episode {} due to error in opening script file: {:?}", episode, e);
@@ -188,7 +189,7 @@ fn run_episode<'a>(episode: u64, experiment: &'a ExperimentConfig, results: &mut
     };
     let s = match cmd.status() {
         Ok(status) => {
-            writeln!(results, "Executed episode {} successfully. Exit status: {}", episode, status);
+            writeln!(results, "Executed episode {}", episode);
             status
         },
         Err(e) => {
@@ -200,5 +201,10 @@ fn run_episode<'a>(episode: u64, experiment: &'a ExperimentConfig, results: &mut
         Some(0) => writeln!(results, "Script executed successfully.").unwrap(),
         Some(v) => writeln!(results, "Script exited abnormally with exit status {}", v).unwrap(),
         None => (),
+    };
+    
+    match fs::remove_file(&scriptname) {
+        Err(e) => writeln!(results, "Could not remove file {}. Error: {:?}", scriptname, e).unwrap(),
+        Ok(_) => (),
     };
 }
