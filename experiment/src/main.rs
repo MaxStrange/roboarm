@@ -107,7 +107,7 @@ fn main() {
     };
 
     // Now print out the settings as we interpreted them
-    let experiment = ExperimentConfig::new(mode, nepisodes, nsteps_per_episode, comstr.as_str());
+    let experiment = ExperimentConfig::new(mode, nepisodes, nsteps_per_episode, comstr.clone());
 
     println!("Running Experiment with Configuration:\n{}", experiment);
 
@@ -189,9 +189,9 @@ fn run_episode<'a>(episode: u64, experiment: &'a ExperimentConfig, results: &mut
 
     // Execute the script
     let status = if cfg!(target_os = "windows") {
-        process::Command::new("target/debug/teleop.exe").arg(experiment.comstr).status()
+        process::Command::new("target/debug/teleop.exe").arg(experiment.comstr.as_str()).status()
     } else {
-        process::Command::new("target/debug/teleop").arg(experiment.comstr).status()
+        process::Command::new("target/debug/teleop").arg(experiment.comstr.as_str()).status()
     };
     let s = match status {
         Ok(status) => {
