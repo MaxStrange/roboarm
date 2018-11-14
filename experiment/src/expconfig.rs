@@ -5,6 +5,7 @@ pub struct ExperimentConfig {
     pub nsteps_per_episode: u64,
     pub nepisodes: u64,
     pub mode: Mode,
+    pub comstr: &'static str,
 }
 
 #[derive(Debug)]
@@ -14,8 +15,8 @@ pub enum Mode {
 }
 
 impl ExperimentConfig {
-    pub fn new(mode: Mode, nepisodes: u64, nsteps_per_episode: u64) -> Self {
-        ExperimentConfig{mode: mode, nepisodes: nepisodes, nsteps_per_episode: nsteps_per_episode}
+    pub fn new(mode: Mode, nepisodes: u64, nsteps_per_episode: u64, comstr: &'static str) -> Self {
+        ExperimentConfig{mode: mode, nepisodes: nepisodes, nsteps_per_episode: nsteps_per_episode, comstr: comstr}
     }
 }
 

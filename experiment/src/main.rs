@@ -14,6 +14,7 @@
 //! mode: 'random' or 'genetic'
 //! nsteps_per_episode: integer value
 //! nepisodes: interger value
+//! com: com_port_or_dev_path
 
 /* Externs */
 extern crate config;
@@ -91,17 +92,22 @@ fn main() {
     let modestr = match setting_strings.entry("mode".to_string()) {
         hash_map::Entry::Occupied(o) => o,
         hash_map::Entry::Vacant(_) => { println!("Missing mode in config file."); process::exit(3) },
-    };
+    }.get().clone();
+
+    let comstr = match setting_strings.entry("com".to_string()) {
+        hash_map::Entry::Occupied(o) => o,
+        hash_map::Entry::Vacant(_) => { println!("Missing com in config file."); process::exit(3) },
+    }.get().clone();
 
     // Try to convert the mode into one of either Mode::Random or Mode::Genetic
-    let mode = match modestr.get().as_str() {
+    let mode = match modestr.as_str() {
         "random" => Mode::Random,
         "genetic" => Mode::Genetic,
         m => { println!("Mode must be 'random' or 'genetic' but is {}", m); process::exit(3) },
     };
 
     // Now print out the settings as we interpreted them
-    let experiment = ExperimentConfig::new(mode, nepisodes, nsteps_per_episode);
+    let experiment = ExperimentConfig::new(mode, nepisodes, nsteps_per_episode, comstr.as_str());
 
     println!("Running Experiment with Configuration:\n{}", experiment);
 
@@ -182,12 +188,12 @@ fn run_episode<'a>(episode: u64, experiment: &'a ExperimentConfig, results: &mut
     writeln!(f, "home");
 
     // Execute the script
-    let mut cmd = if cfg!(target_os = "windows") {
-        process::Command::new("target/debug/teleop.exe")
+    let status = if cfg!(target_os = "windows") {
+        process::Command::new("target/debug/teleop.exe").arg(experiment.comstr).status()
     } else {
-        process::Command::new("target/debug/teleop")
+        process::Command::new("target/debug/teleop").arg(experiment.comstr).status()
     };
-    let s = match cmd.status() {
+    let s = match status {
         Ok(status) => {
             writeln!(results, "Executed episode {}", episode);
             status
