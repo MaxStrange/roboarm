@@ -26,8 +26,10 @@ fn main() {
         let script = std::env::args().nth(2);
 
         if let Some(script) = script {
+            println!("Executing script {:?}", script);
             run_script(port, script);
         } else {
+            println!("Executing spin");
             spin(port);
         }
     } else {
