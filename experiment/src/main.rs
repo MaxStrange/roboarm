@@ -189,9 +189,15 @@ fn run_episode<'a>(episode: u64, experiment: &'a ExperimentConfig, results: &mut
 
     // Execute the script
     let status = if cfg!(target_os = "windows") {
-        process::Command::new("target/debug/teleop.exe").arg(experiment.comstr.as_str()).status()
+        process::Command::new("target/debug/teleop.exe")
+                            .arg(experiment.comstr.as_str())
+                            .arg(scriptname.as_str())
+                            .status()
     } else {
-        process::Command::new("target/debug/teleop").arg(experiment.comstr.as_str()).status()
+        process::Command::new("target/debug/teleop")
+                            .arg(experiment.comstr.as_str())
+                            .arg(scriptname.as_str())
+                            .status()
     };
     let s = match status {
         Ok(status) => {
