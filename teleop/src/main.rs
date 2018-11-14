@@ -13,6 +13,7 @@ use self::serial::testport;
 use std::sync::mpsc::{Sender, Receiver};
 use std::sync::mpsc;
 use std::thread;
+use std::time;
 
 fn main() {
     // Did the user pass in a COM port?
@@ -56,14 +57,18 @@ fn spin(port: Box<serialport::SerialPort>) {
 
 fn run_script(port: Box<serialport::SerialPort>, scriptpath: String) {
     let (tx, rx): (Sender<commands::Command>, Receiver<commands::Command>) = mpsc::channel();
-    let commthread = thread::spawn(move || comms::communicate_with_device(port, rx));
+    let _commthread = thread::spawn(move || comms::communicate_with_device(port, rx));
 
     if let Err(msg) = user_input::run_script(&tx, scriptpath.as_str()) {
         println!("Problem running script:\n{}", msg);
         std::process::exit(2);
     }
 
-    if let Err(msg) = commthread.join() {
-        println!("Problem joining comm thread: {:?}", msg);
+    println!("Sending QUIT");
+    for _ in 0..10 {
+        match tx.send(commands::Command::Quit) {
+            _ => ()
+        }
+        thread::sleep(time::Duration::from_millis(100));
     }
 }

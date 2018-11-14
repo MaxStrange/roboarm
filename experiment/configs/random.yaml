@@ -1,4 +1,4 @@
 mode: random
-nsteps_per_episode: 3
+nsteps_per_episode: 30
 nepisodes: 2
 com: COM3

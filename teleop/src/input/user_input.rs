@@ -83,7 +83,7 @@ pub mod user_input {
         // they can be typed
         for c in cmds {
             execute_command(c, tx);
-            thread::sleep(time::Duration::from_millis(1000));
+            thread::sleep(time::Duration::from_millis(1500));
         }
 
         Ok(())
