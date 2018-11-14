@@ -21,7 +21,15 @@ fn main() {
     // Try to get a handle on the port. Fail loudly.
     if let Some(port) = portcomms::get_serial_port(user_requested_port) {
         println!("Got a port named {:?}", port.name());
-        spin(port);
+
+        // Did the user pass in a script?
+        let script = std::env::args().nth(2);
+
+        if let Some(script) = script {
+            run_script(port, script);
+        } else {
+            spin(port);
+        }
     } else {
         println!("Could not find a serial port with the appropriate device.");
         std::process::exit(1);
@@ -41,5 +49,19 @@ fn spin(port: Box<serialport::SerialPort>) {
     }
     if let Err(msg) = inputthread.join() {
         println!("Problem joining input thread: {:?}", msg);
+    }
+}
+
+fn run_script(port: Box<serialport::SerialPort>, scriptpath: String) {
+    let (tx, rx): (Sender<commands::Command>, Receiver<commands::Command>) = mpsc::channel();
+    let commthread = thread::spawn(move || comms::communicate_with_device(port, rx));
+
+    if let Err(msg) = user_input::run_script(&tx, scriptpath.as_str()) {
+        println!("Problem running script:\n{}", msg);
+        std::process::exit(2);
+    }
+
+    if let Err(msg) = commthread.join() {
+        println!("Problem joining comm thread: {:?}", msg);
     }
 }

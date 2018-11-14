@@ -44,7 +44,9 @@ pub mod user_input {
                 true
             },
             commands::Command::Script(fpath) => {
-                run_script(tx, &fpath);
+                if let Err(msg) = run_script(tx, &fpath) {
+                    println!("Problem running script:\n{}", msg);
+                }
                 false
             },
             _ => {
@@ -57,7 +59,7 @@ pub mod user_input {
 
     /// Opens the given file, reads its contents, then executes each line as if it were
     /// a command entered into the console. Does not accept Quit commands or other script commands.
-    fn run_script(tx: &mpsc::Sender<commands::Command>, fpath: &str) {
+    pub fn run_script(tx: &mpsc::Sender<commands::Command>, fpath: &str) -> Result<(), String> {
         let mut cmds = Vec::new();
         match fs::File::open(fpath) {
             Ok(file) => {
@@ -66,8 +68,7 @@ pub mod user_input {
                     match commands::Command::new_from_string(&line.expect(&format!("Couldn't read line {}", lineno))) {
                         Ok(cmd) => cmds.push(cmd),
                         Err(msg) => {
-                            println!("Problem with script at line {}: {}", lineno, msg);
-                            return;
+                            return Err(format!("Problem with script at line {}: {}", lineno, msg));
                         },
                     }
                 }
@@ -84,5 +85,7 @@ pub mod user_input {
             execute_command(c, tx);
             thread::sleep(time::Duration::from_millis(1000));
         }
+
+        Ok(())
     }
 }
