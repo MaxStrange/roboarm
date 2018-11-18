@@ -1,6 +1,8 @@
 use super::expconfig::ExperimentConfig;
 use std::collections::HashMap;
 use std::fmt;
+use std::io::Write;
+use std::fs;
 
 #[derive(Debug)]
 pub struct ExperimentResults<'a> {
@@ -37,6 +39,16 @@ impl<'a> ExperimentResults<'a> {
     pub fn finish(&mut self) {
         self.logs.insert(self.cur_episode, self.episode_buffer.clone());
     }
+
+    /// Save to disk
+    pub fn save(&self, fname: String) {
+        let mut f = match fs::File::create(&fname) {
+            Err(e) => { println!("Could not save results due to error: {:?}", e); return; },
+            Ok(file) => file,
+        };
+
+        write!(f, "{}", &self);
+    }
 }
 
 impl<'a> fmt::Display for ExperimentResults<'a> {
@@ -46,7 +58,11 @@ impl<'a> fmt::Display for ExperimentResults<'a> {
         writeln!(f, "Experiment Results Generated for Experiment with configuration:")?;
         writeln!(f, "{}", self.config)?;
 
-        for episode in self.logs.keys() {
+        // Collect all the keys into a vector in sorted order
+        let mut sortedkeys: Vec<&u64> = self.logs.keys().clone().collect();
+        sortedkeys.sort_unstable();
+
+        for episode in sortedkeys {
             writeln!(f, "")?;
             writeln!(f, "Episode {}", episode)?;
             writeln!(f, "{}", self.logs.get(episode).unwrap())?;
