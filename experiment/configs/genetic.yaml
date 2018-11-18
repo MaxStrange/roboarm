@@ -1,0 +1,7 @@
+mode: genetic
+nsteps_per_episode: 30
+nepisodes: 2
+com: COM3
+generation_size: 100
+randomized_weights_low: -10.0
+randomized_weights_high: 10.0

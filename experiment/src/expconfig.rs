@@ -3,11 +3,24 @@ use std::fmt::{self, Write};
 use std::path::Path;
 
 #[derive(Debug)]
+/// An experiment configuration
 pub struct ExperimentConfig {
+    /// Number of steps in a single episode
     pub nsteps_per_episode: u64,
+    /// Number of episodes in the experiment. If mode is genetic, this is also the number of generations.
     pub nepisodes: u64,
+    /// Mode of the experiment.
     pub mode: Mode,
+    /// The COM port to find the Robot on.
     pub comstr: String,
+    /// The number of networks in a generation. Only parsed if mode is Genetic.
+    pub generation_size: u64,
+    /// A random new network will have weights in the interval [low, high]
+    pub low: f64,
+    /// A random new network will have weights in the interval [low, high]
+    pub high: f64,
+    /// The number of networks to use to seed a new generation
+    pub nkeep: u64,
 }
 
 #[derive(Debug)]
@@ -64,12 +77,64 @@ impl ExperimentConfig {
             hash_map::Entry::Vacant(_) => return Err("Missing com in config file.".to_string()),
         }.get().clone();
 
+        // Parse out the number of networks in a generation if the mode is genetic
+        let generation_size = match mode {
+            Mode::Random => 0,
+            Mode::Genetic => match setting_strings.entry("generation_size".to_string()) {
+                    hash_map::Entry::Vacant(_) => return Err("Missing generation_size in config file.".to_string()),
+                    hash_map::Entry::Occupied(o) => match o.get().clone().parse::<u64>() {
+                        Err(_) => return Err("Could not convert generation_size into integer.".to_string()),
+                        Ok(val) => val,
+                }
+            }
+        };
+
+        // Parse out 'low' if the mode is genetic
+        let low = match mode {
+            Mode::Random => 0.0,
+            Mode::Genetic => match setting_strings.entry("low".to_string()) {
+                hash_map::Entry::Vacant(_) => return Err("Missing 'low' in config file.".to_string()),
+                hash_map::Entry::Occupied(o) => match o.get().clone().parse::<f64>() {
+                    Err(_) => return Err("Could not convert 'low' into float.".to_string()),
+                    Ok(val) => val,
+                }
+            }
+        };
+
+        // Parse out 'high' if the mode is genetic
+        let high = match mode {
+            Mode::Random => 0.0,
+            Mode::Genetic => match setting_strings.entry("high".to_string()) {
+                hash_map::Entry::Vacant(_) => return Err("Missing 'high' in config file.".to_string()),
+                hash_map::Entry::Occupied(o) => match o.get().clone().parse::<f64>() {
+                    Err(_) => return Err("Could not convert 'high' into float.".to_string()),
+                    Ok(val) => val,
+                }
+            }
+        };
+
+        // Parse out 'nkeep' if the mode is genetic
+        let nkeep = match mode {
+            Mode::Random => 0,
+            Mode::Genetic => match setting_strings.entry("nkeep".to_string()) {
+                hash_map::Entry::Vacant(_) => return Err("Missing 'nkeep' in config file.".to_string()),
+                hash_map::Entry::Occupied(o) => match o.get().clone().parse::<u64>() {
+                    Err(_) => return Err("Could not convert 'nkeep' into integer.".to_string()),
+                    Ok(val) => val,
+                }
+            }
+        };
+
         // Now print out the settings as we interpreted them
         Ok(ExperimentConfig {
             nsteps_per_episode: nsteps_per_episode,
             nepisodes: nepisodes,
             mode: mode,
             comstr: comstr,
+            generation_size: generation_size,
+            low: low,
+            high: high,
+            nkeep: nkeep,
         })
     }
 }

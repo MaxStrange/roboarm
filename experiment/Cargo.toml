@@ -6,5 +6,6 @@ edition = "2018"
 
 [dependencies]
 config = "0.9.1"
+nalgebra = "0.16"
 num = "0.2"
 rand = "0.5"

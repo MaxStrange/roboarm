@@ -24,6 +24,8 @@ extern crate rand;
 /* Modules */
 mod expconfig;
 mod expresults;
+mod expstate;
+mod network;
 
 /* Uses */
 use rand::prelude::*;
@@ -35,8 +37,9 @@ use std::io::Write as _w; // have to include two different Writes
 use std::fs;
 
 /* Selfs */
-use self::expconfig::ExperimentConfig;
+use self::expconfig::{Mode, ExperimentConfig};
 use self::expresults::ExperimentResults;
+use self::expstate::ExperimentState;
 
 /* Consts */
 const ANGLE_START_BASE: isize = 90;
@@ -81,9 +84,14 @@ fn main() {
             process::exit(3);
         },
     };
+
+    // Inform the user how we parsed their config file
     println!("Running Experiment with Configuration:\n{}", experiment);
 
+    // Run the experiment
     let results = run_experiment(&experiment);
+
+    // Print and save the results
     println!("{}", results);
     results.save("results.txt".to_string());
 }
@@ -95,27 +103,26 @@ fn run_experiment<'a>(experiment: &'a ExperimentConfig) -> ExperimentResults<'a>
     // Create the results to record to
     let mut results = ExperimentResults::new(&experiment);
 
+    // Create the Experiment state which will track anything that persists between episodes
+    let mut state = ExperimentState::new();
+
     // Run the whole experiment (each episode)
     for episode in 0..experiment.nepisodes {
         println!("=== Starting episode {} ===", episode);
         results.set_episode(episode);
-        run_episode(episode, experiment, &mut results, &mut rng);
+        run_episode(episode, experiment, &mut results, &mut rng, &mut state);
     }
 
     results.finish();
     results
 }
 
-fn run_episode<'a>(episode: u64, experiment: &'a ExperimentConfig, results: &mut ExperimentResults, rng: &mut rand::ThreadRng) {
-    // Starting angles
-    let mut base: isize = ANGLE_START_BASE;
-    let mut shoulder: isize = ANGLE_START_SHOULDER;
-    let mut elbow: isize = ANGLE_START_ELBOW;
-
+fn run_episode<'a>(episode: u64, experiment: &'a ExperimentConfig, results: &mut ExperimentResults, rng: &mut rand::ThreadRng, state: &mut ExperimentState) {
     // Create the script for this episode
     let mut scriptname = String::new();
     write!(scriptname, "tmpscript_episode_{}.txt", episode);
     let mut f = match fs::File::create(&scriptname) {
+        Ok(file) => file,
         Err(e) => {
             let mut msg = String::new();
             writeln!(msg, "Could not run episode {} due to error in opening script file: {:?}", episode, e);
@@ -124,8 +131,63 @@ fn run_episode<'a>(episode: u64, experiment: &'a ExperimentConfig, results: &mut
             print!("{}", msg);
             return;
         },
-        Ok(file) => file,
     };
+
+    // Take a bunch of steps, with behavior dependent on the experiment configuration
+    match experiment.mode {
+        Mode::Random => run_random_episode(experiment, rng, results, &mut f),
+        Mode::Genetic => run_genetic_episode(experiment, rng, results, &mut f, state),
+    };
+
+    // Make sure to go to home after every episode and spend a few cycles there.
+    writeln!(f, "home");
+    writeln!(f, "home");
+    writeln!(f, "home");
+
+    // Execute the script
+    let status = if cfg!(target_os = "windows") {
+        process::Command::new("target/debug/teleop.exe")
+                            .arg(experiment.comstr.as_str())
+                            .arg(scriptname.as_str())
+                            .status()
+    } else {
+        process::Command::new("target/debug/teleop")
+                            .arg(experiment.comstr.as_str())
+                            .arg(scriptname.as_str())
+                            .status()
+    };
+
+    // Check the results of running the script
+    let s = match status {
+        Ok(status) => {
+            writeln!(results, "Executed episode {}", episode);
+            status
+        },
+        Err(e) => {
+            writeln!(results, "Could not execute episode {}. Error: {:?}", episode, e);
+            return;
+        },
+    };
+
+    // Check the status code
+    match s.code() {
+        Some(0) => writeln!(results, "Script executed successfully.").unwrap(),
+        Some(v) => writeln!(results, "Script exited abnormally with exit status {}", v).unwrap(),
+        None => (),
+    };
+
+    // Remove the temporary script
+    match fs::remove_file(&scriptname) {
+        Err(e) => writeln!(results, "Could not remove file {}. Error: {:?}", scriptname, e).unwrap(),
+        Ok(_) => (),
+    };
+}
+
+fn run_random_episode<'a>(experiment: &'a ExperimentConfig, rng: &mut rand::ThreadRng, results: &mut ExperimentResults, f: &mut fs::File) {
+    // Starting angles
+    let mut base: isize = ANGLE_START_BASE;
+    let mut shoulder: isize = ANGLE_START_SHOULDER;
+    let mut elbow: isize = ANGLE_START_ELBOW;
 
     // For each step, do a random step of up to 15 degrees in either direction on each servo
     for _step in 0..experiment.nsteps_per_episode {
@@ -154,42 +216,28 @@ fn run_episode<'a>(episode: u64, experiment: &'a ExperimentConfig, results: &mut
         writeln!(results, "servo {} {}", SHOULDERNUM, shoulder);
         writeln!(results, "servo {} {}", ELBOWNUM, elbow);
     }
+}
 
-    // Make sure to go to home after every episode and spend a few cycles there.
-    writeln!(f, "home");
-    writeln!(f, "home");
-    writeln!(f, "home");
+fn run_genetic_episode<'a>(experiment: &'a ExperimentConfig, rng: &mut rand::ThreadRng, results: &mut ExperimentResults, f: &mut fs::File, state: &mut ExperimentState) {
+    // Starting angles
+    let mut base: isize = ANGLE_START_BASE;
+    let mut shoulder: isize = ANGLE_START_SHOULDER;
+    let mut elbow: isize = ANGLE_START_ELBOW;
 
-    // Execute the script
-    let status = if cfg!(target_os = "windows") {
-        process::Command::new("target/debug/teleop.exe")
-                            .arg(experiment.comstr.as_str())
-                            .arg(scriptname.as_str())
-                            .status()
-    } else {
-        process::Command::new("target/debug/teleop")
-                            .arg(experiment.comstr.as_str())
-                            .arg(scriptname.as_str())
-                            .status()
-    };
-    let s = match status {
-        Ok(status) => {
-            writeln!(results, "Executed episode {}", episode);
-            status
-        },
-        Err(e) => {
-            writeln!(results, "Could not execute episode {}. Error: {:?}", episode, e);
-            return;
-        },
-    };
-    match s.code() {
-        Some(0) => writeln!(results, "Script executed successfully.").unwrap(),
-        Some(v) => writeln!(results, "Script exited abnormally with exit status {}", v).unwrap(),
-        None => (),
-    };
+    // Crate a generation
+    state.create_next_generation(experiment.generation_size as usize, experiment.low, experiment.high, experiment.nkeep as usize, rng);
 
-    match fs::remove_file(&scriptname) {
-        Err(e) => writeln!(results, "Could not remove file {}. Error: {:?}", scriptname, e).unwrap(),
-        Ok(_) => (),
-    };
+    // Choose one of the possible goals
+    // TODO
+
+    // Evaluate each network in the generation
+    //for network in state.networks {
+    //    // For each step, get the values for each joint delta from a forward pass through the current network
+    //    for _step in 0..experiment.nsteps_per_episode {
+    //        // TODO
+    //    }
+
+    //    // Now figure out how fit this network is based on how close the arm ended up to the object
+    //    // TODO
+    //}
 }
