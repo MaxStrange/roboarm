@@ -19,6 +19,7 @@ pub fn relu(x: f64) -> f64 {
     }
 }
 
+#[derive(Clone)]
 /// MLP Neural Network
 ///
 /// This struct contains a dirt-simple implementation of a
