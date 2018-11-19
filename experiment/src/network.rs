@@ -4,6 +4,12 @@ extern crate nalgebra;
 extern crate rand;
 
 use nalgebra as na;
+use rand::Rng;
+use std::fmt::Write;
+
+pub fn linear(x: f64) -> f64 {
+    x
+}
 
 pub fn relu(x: f64) -> f64 {
     if x < 0.0 {
@@ -60,10 +66,21 @@ impl MultilayerPerceptron {
         self
     }
 
-    pub fn finalize(&self) -> Self {
-        MultilayerPerceptron {
-            layers: self.layers.clone(),
+    /// Attempts to finalize the building pattern. May fail if configuration doesn't make sense.
+    pub fn finalize(&self) -> Result<Self, String> {
+        for i in 0..self.layers.len() {
+            if i < self.layers.len() - 1 {
+                // Check layer i's output weights against layer i+1's input weights
+                if self.layers[i].weights.ncols() != self.layers[i + 1].nnodes {
+                    let mut msg = String::new();
+                    write!(msg, "Layer {} specifies {} connections, but there are {} nodes in layer {}.", i, self.layers[i].weights.ncols(), self.layers[i+1].nnodes, i + 1);
+                    return Err(msg);
+                }
+            }
         }
+        Ok(MultilayerPerceptron {
+            layers: self.layers.clone(),
+        })
     }
 }
 
@@ -99,13 +116,19 @@ impl Layer {
     /// Alerts this layer that it is the output layer. Call this instead of `connect` for the output layer.
     pub fn make_output(&mut self) -> &mut Self {
         self.output = true;
-        self.weights = na::DMatrix::<f64>::identity(self.nnodes, 2);
+        self.weights = na::DMatrix::<f64>::identity(self.nnodes, 1);
         self
     }
 
     /// Initializes the weights via random uniform distribution to values in the interval [low, high].
     pub fn initialize_weights(&mut self, low: f64, high: f64, rng: &mut rand::ThreadRng) -> &mut Self {
-        // TODO
+        for c in 0..self.weights.ncols() {
+            for r in 0..self.weights.nrows() {
+                let val = rng.gen_range(low, high + 1E-9);
+                let nrows = self.weights.nrows();
+                self.weights[c * nrows + r] = val;
+            }
+        }
         self
     }
 

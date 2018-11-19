@@ -1,5 +1,5 @@
 use rand;
-use super::network::{Layer, MultilayerPerceptron, relu};
+use super::network::{Layer, MultilayerPerceptron, relu, linear};
 
 /// A struct to maintain state across the whole experiment
 pub struct ExperimentState {
@@ -42,12 +42,40 @@ impl ExperimentState {
                     .add_layer(
                         Layer::new()
                             .length(3)
-                            .activation(relu)
+                            .activation(linear)
                             .connect(125)
                             .initialize_weights(low, high, rng)
                             .finalize()
                     )
+                    .add_layer(
+                        Layer::new()
+                            .length(125)
+                            .activation(relu)
+                            .connect(75)
+                            .initialize_weights(low, high, rng)
+                            .finalize()
+                    )
+                    .add_layer(
+                        Layer::new()
+                            .length(75)
+                            .activation(relu)
+                            .connect(3)
+                            .initialize_weights(low, high, rng)
+                            .finalize()
+                    )
+                    .add_layer(
+                        Layer::new()
+                            .length(3)
+                            .activation(linear)
+                            .make_output()
+                            .initialize_weights(low, high, rng)
+                            .finalize()
+                    )
                     .finalize()
+            };
+            let net = match net {
+                Err(msg) => { println!("{}", msg); panic!(); },
+                Ok(n) => n,
             };
             self.networks.push(net);
         }
