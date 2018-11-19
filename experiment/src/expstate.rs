@@ -42,7 +42,7 @@ impl ExperimentState {
                     .add_layer(
                         Layer::new()
                             .length(3)
-                            .activation(Box::new(relu))
+                            .activation(relu)
                             .connect(125)
                             .initialize_weights(low, high, rng)
                             .finalize()

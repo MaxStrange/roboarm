@@ -28,6 +28,9 @@ pub struct MultilayerPerceptron {
     layers: Vec<Layer>,
 }
 
+pub type ActivationFunction = fn(f64) -> f64;
+
+#[derive(Clone)]
 /// A layer of an MLP
 ///
 /// Layers in the MLP are always feedforward and fully-connected.
@@ -37,7 +40,7 @@ pub struct Layer {
     /// The number of nodes in this layer
     nnodes: usize,
     /// The activation function. Takes an input, applies a nonlinearity to it, and then returns the result.
-    activation_function: Box<Fn(f64) -> f64>,
+    activation_function: ActivationFunction,
     /// Matrix of weights going *out of* this Layer. Matrix is N_thislayer x N_nextlayer.
     weights: na::Matrix<f64, na::Dynamic, na::Dynamic, na::MatrixVec<f64, na::Dynamic, na::Dynamic>>,
     /// Are we the output layer?
@@ -69,7 +72,7 @@ impl Layer {
     pub fn new() -> Self {
         Layer {
             nnodes: 0,
-            activation_function: Box::new(|_| 0.0),
+            activation_function: |_| 0.0,
             weights: na::DMatrix::<f64>::identity(10, 10),
             output: false,
         }
@@ -82,7 +85,7 @@ impl Layer {
     }
 
     /// Makes this layer's activation function `f`
-    pub fn activation(&mut self, f: Box<Fn(f64) -> f64>) -> &mut Self {
+    pub fn activation(&mut self, f: ActivationFunction) -> &mut Self {
         self.activation_function = f;
         self
     }
