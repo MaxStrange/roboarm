@@ -1,6 +1,7 @@
 use std::collections::hash_map::{self, HashMap};
 use std::fmt::{self, Write};
 use std::path::Path;
+use std::str::FromStr;
 
 #[derive(Debug)]
 /// An experiment configuration
@@ -21,6 +22,10 @@ pub struct ExperimentConfig {
     pub high: f64,
     /// The number of networks to use to seed a new generation
     pub nkeep: u64,
+    /// Rough percentage of the weights in each network to mutate to create a mutant. Should be in interval [0.0, 100.0].
+    pub percent_mutate: f64,
+    /// Mutant weights are formed by drawing from a Gaussian of mu=weight_i, stdev=mutation_stdev
+    pub mutation_stdev: f64,
 }
 
 #[derive(Debug)]
@@ -80,49 +85,62 @@ impl ExperimentConfig {
         // Parse out the number of networks in a generation if the mode is genetic
         let generation_size = match mode {
             Mode::Random => 0,
-            Mode::Genetic => match setting_strings.entry("generation_size".to_string()) {
-                    hash_map::Entry::Vacant(_) => return Err("Missing generation_size in config file.".to_string()),
-                    hash_map::Entry::Occupied(o) => match o.get().clone().parse::<u64>() {
-                        Err(_) => return Err("Could not convert generation_size into integer.".to_string()),
-                        Ok(val) => val,
-                }
-            }
+            Mode::Genetic => match parse_genetic_parameter::<u64>(&mut setting_strings, "generation_size".to_string()) {
+                Err(msg) => return Err(msg),
+                Ok(val) => val,
+            },
         };
 
         // Parse out 'low' if the mode is genetic
         let low = match mode {
             Mode::Random => 0.0,
-            Mode::Genetic => match setting_strings.entry("low".to_string()) {
-                hash_map::Entry::Vacant(_) => return Err("Missing 'low' in config file.".to_string()),
-                hash_map::Entry::Occupied(o) => match o.get().clone().parse::<f64>() {
-                    Err(_) => return Err("Could not convert 'low' into float.".to_string()),
-                    Ok(val) => val,
-                }
-            }
+            Mode::Genetic => match parse_genetic_parameter::<f64>(&mut setting_strings, "low".to_string()) {
+                Err(msg) => return Err(msg),
+                Ok(val) => val,
+            },
         };
 
         // Parse out 'high' if the mode is genetic
         let high = match mode {
             Mode::Random => 0.0,
-            Mode::Genetic => match setting_strings.entry("high".to_string()) {
-                hash_map::Entry::Vacant(_) => return Err("Missing 'high' in config file.".to_string()),
-                hash_map::Entry::Occupied(o) => match o.get().clone().parse::<f64>() {
-                    Err(_) => return Err("Could not convert 'high' into float.".to_string()),
-                    Ok(val) => val,
-                }
-            }
+            Mode::Genetic => match parse_genetic_parameter::<f64>(&mut setting_strings, "high".to_string()) {
+                Err(msg) => return Err(msg),
+                Ok(val) => val,
+            },
         };
 
         // Parse out 'nkeep' if the mode is genetic
         let nkeep = match mode {
             Mode::Random => 0,
-            Mode::Genetic => match setting_strings.entry("nkeep".to_string()) {
-                hash_map::Entry::Vacant(_) => return Err("Missing 'nkeep' in config file.".to_string()),
-                hash_map::Entry::Occupied(o) => match o.get().clone().parse::<u64>() {
-                    Err(_) => return Err("Could not convert 'nkeep' into integer.".to_string()),
-                    Ok(val) => val,
-                }
-            }
+            Mode::Genetic => match parse_genetic_parameter::<u64>(&mut setting_strings, "nkeep".to_string()) {
+                Err(msg) => return Err(msg),
+                Ok(val) => val,
+            },
+        };
+
+        // Parse out 'mutation_stdev' if the mode is genetic
+        let mutation_stdev = match mode {
+            Mode::Random => 0.0,
+            Mode::Genetic => match parse_genetic_parameter::<f64>(&mut setting_strings, "mutation_stdev".to_string()) {
+                Err(msg) => return Err(msg),
+                Ok(val) => val,
+            },
+        };
+
+        // Parse out 'percent_mutate' if the mode is genetic
+        let percent_mutate = match mode {
+            Mode::Random => 0.0,
+            Mode::Genetic => match parse_genetic_parameter::<f64>(&mut setting_strings, "percent_mutate".to_string()) {
+                Err(msg) => return Err(msg),
+                Ok(val) => val,
+            },
+        };
+
+        // Check to make sure percent_mutate is within allowed bounds
+        if percent_mutate < 0.0 || percent_mutate > 100.0 {
+            let mut msg = String::new();
+            write!(msg, "'percent_mutate' must be in interval [0, 100], but is {}", percent_mutate);
+            return Err(msg);
         };
 
         // Now print out the settings as we interpreted them
@@ -135,7 +153,27 @@ impl ExperimentConfig {
             low: low,
             high: high,
             nkeep: nkeep,
+            mutation_stdev: mutation_stdev,
+            percent_mutate: percent_mutate,
         })
+    }
+}
+
+fn parse_genetic_parameter<T: FromStr>(setting_strings: &mut HashMap<String, String>, s: String) -> Result<T, String> {
+    match setting_strings.entry(s.clone()) {
+        hash_map::Entry::Vacant(_) => {
+            let mut msg = String::new();
+            write!(msg, "Missing {} in config file", s);
+            Err(msg)
+        },
+        hash_map::Entry::Occupied(o) => match o.get().clone().parse::<T>() {
+            Err(_) => {
+                let mut msg = String::new();
+                write!(msg, "Could not convert {} into appropriate type", s);
+                Err(msg)
+            },
+            Ok(val) => Ok(val),
+        },
     }
 }
 

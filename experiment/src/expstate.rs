@@ -1,5 +1,6 @@
 use rand;
 use super::network::{Layer, MultilayerPerceptron, relu, linear};
+use super::expconfig::ExperimentConfig;
 use std::cmp::Ordering::Equal;
 
 /// A struct to maintain state across the whole experiment
@@ -30,17 +31,12 @@ impl ExperimentState {
     /// If the current generation does contain networks,
     /// the top `nkeep` networks are kept and mutated, while the others are
     /// discarded.
-    ///
-    /// **Parameters**
-    ///
-    /// * `gensize` The number of networks in a single generation
-    /// * `low` The first generation's networks will have weights in the interval [low, high]
-    /// * `high` The first generation's networks will have weights in the interval [low, high]
-    /// * `nkeep` The number of networks to keep between generations
-    ///
-    pub fn create_next_generation(&mut self, gensize: usize, low: f64, high: f64, nkeep: usize, rng: &mut rand::ThreadRng) {
+    pub fn create_next_generation<'a>(&mut self, experiment: &'a ExperimentConfig, rng: &mut rand::ThreadRng) {
+        let gensize = experiment.generation_size as usize;
+        let nkeep = experiment.nkeep as usize;
+
         self.networks = if self.generation == 0 {
-            self.spawn_n_networks(gensize, low, high, rng)
+            self.spawn_n_networks(gensize, experiment.low, experiment.high, rng)
         } else {
             // sort the networks along with their indexes by how well they did
             let mut idx_val_nets: Vec<(usize, (&f64, &MultilayerPerceptron))> =
@@ -61,12 +57,18 @@ impl ExperimentState {
             }
 
             // Spawn the rest of the nets as random mutations of the others
-            // TODO
-            let mut rest = self.spawn_n_networks(gensize - nkeep, low, high, rng);
+            let mut rest = Vec::new();
+            for i in 0..(gensize - nkeep) {
+                let mutant = nets_to_keep[i % nkeep].mutate(rng, experiment.percent_mutate / 100.0, experiment.mutation_stdev);
+                rest.push(mutant);
+            }
+
+            // Move the rest into nets_to_keep
             for net in rest {
                 nets_to_keep.push(net);
             }
 
+            assert!(nets_to_keep.len() == gensize);
             nets_to_keep
         };
         self.generation += 1;

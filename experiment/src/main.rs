@@ -225,7 +225,7 @@ fn run_genetic_episode<'a>(experiment: &'a ExperimentConfig, rng: &mut rand::Thr
     let mut elbow: isize = ANGLE_START_ELBOW;
 
     // Crate a generation
-    state.create_next_generation(experiment.generation_size as usize, experiment.low, experiment.high, experiment.nkeep as usize, rng);
+    state.create_next_generation(experiment, rng);
 
     // Choose one of the possible goals
     // TODO

@@ -5,6 +5,7 @@ extern crate rand;
 
 use nalgebra as na;
 use rand::Rng;
+use rand::distributions::Normal;
 use std::fmt::Write;
 
 pub fn linear(x: f64) -> f64 {
@@ -82,6 +83,50 @@ impl MultilayerPerceptron {
         Ok(MultilayerPerceptron {
             layers: self.layers.clone(),
         })
+    }
+
+    /// Returns the total number of weights in this network.
+    pub fn nweights(&self) -> usize {
+        let mut total: usize = 0;
+        for layer in self.layers.iter() {
+            total += layer.weights.ncols() * layer.weights.nrows();
+        }
+        total
+    }
+
+    /// Clone the current network and mutate the offspring's weights.
+    ///
+    /// Weights are mutated by taking `percent_mutate` of the number of weights in the network
+    /// and adjusting them to equal a value drawn from a Gaussian distribution of
+    /// mu=current_weight, sigma=`stdev`.
+    ///
+    /// Note that `percent_mutate` is asserted to be less than or equal to 1.0.
+    pub fn mutate(&self, rng: &mut rand::ThreadRng, percent_mutate: f64, stdev: f64) -> Self {
+        // Assert that we don't try to mutate more weights than we have
+        assert!(percent_mutate <= 1.0);
+
+        // Create the mutant as a clone of us
+        let mut mutant = self.clone();
+
+        // Figure out how many weights we should mutate
+        let nmutate = (self.nweights() as f64 * percent_mutate).round() as usize;
+
+        // Mutate that many weights
+        for _ in 0..nmutate {
+            // Pick a weight at random. In the interest of speed and simplicity, let's not worry about
+            // whether we have picked it already or not
+            let layeridx = rng.gen_range(0, self.layers.len());
+            let randrow = rng.gen_range(0, self.layers[layeridx].weights.nrows());
+            let randcol = rng.gen_range(0, self.layers[layeridx].weights.ncols());
+            let nrows = self.layers[layeridx].weights.nrows();
+            let weight_idx = randcol * nrows + randrow;
+            let original_weight = self.layers[layeridx].weights[weight_idx];
+
+            let mutant_weight = rng.sample(Normal::new(original_weight, stdev));
+            mutant.layers[layeridx].weights[weight_idx] = mutant_weight;
+        }
+
+        mutant
     }
 }
 
