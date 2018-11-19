@@ -48,6 +48,7 @@ impl ExperimentState {
                     )
                     .collect();
             idx_val_nets.sort_unstable_by(|a, b| (a.1).0.partial_cmp((b.1).0).unwrap_or(Equal));
+            idx_val_nets.reverse();
 
             // Now keep only the top-performing nkeep nets from self.networks
             let mut nets_to_keep = Vec::new();
