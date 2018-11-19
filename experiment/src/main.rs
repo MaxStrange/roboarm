@@ -219,16 +219,19 @@ fn run_random_episode<'a>(experiment: &'a ExperimentConfig, rng: &mut rand::Thre
 }
 
 fn run_genetic_episode<'a>(experiment: &'a ExperimentConfig, rng: &mut rand::ThreadRng, results: &mut ExperimentResults, f: &mut fs::File, state: &mut ExperimentState) {
-    // Starting angles
-    let mut base: isize = ANGLE_START_BASE;
-    let mut shoulder: isize = ANGLE_START_SHOULDER;
-    let mut elbow: isize = ANGLE_START_ELBOW;
-
     // Crate a generation
     state.create_next_generation(experiment, rng);
 
-    // Choose one of the possible goals
-    // TODO
+    // Go to random start position
+    let mut base = num::clamp(ANGLE_START_BASE + rng.gen_range(-30, 30), ANGLE_LOWER_LIMIT_BASE, ANGLE_UPPER_LIMIT_BASE);
+    let mut shoulder = num::clamp(ANGLE_START_SHOULDER + rng.gen_range(-30, 30), ANGLE_LOWER_LIMIT_SHOULDER, ANGLE_UPPER_LIMIT_SHOULDER);
+    let mut elbow = num::clamp(ANGLE_START_ELBOW + rng.gen_range(-30, 30), ANGLE_LOWER_LIMIT_ELBOW, ANGLE_UPPER_LIMIT_ELBOW);
+    writeln!(f, "servo {} {}", BASENUM, base);
+    writeln!(f, "servo {} {}", SHOULDERNUM, shoulder);
+    writeln!(f, "servo {} {}", ELBOWNUM, elbow);
+    writeln!(results, "servo {} {}", BASENUM, base);
+    writeln!(results, "servo {} {}", SHOULDERNUM, shoulder);
+    writeln!(results, "servo {} {}", ELBOWNUM, elbow);
 
     // Evaluate each network in the generation
     //for network in state.networks {
