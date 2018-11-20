@@ -128,6 +128,34 @@ impl MultilayerPerceptron {
 
         mutant
     }
+
+    /// Does a forward pass through the MLP.
+    ///
+    /// Takes a vector, which must be of the same length as the input layer
+    /// and returns a vector, which is of the same length as the output layer.
+    pub fn forward(&self, input: &na::DVector<f64>) -> na::DVector<f64> {
+        assert!(input.len() == self.layers[0].nnodes);
+
+        let mut output = input.clone();
+        for layer in self.layers.iter() {
+            output = layer.activate(output);
+            output = (output.transpose() * layer.weights).transpose();
+        }
+
+        // The final output is diagonal due to final layer's weights being ID
+        // TODO: Sum across rows to collapse into a column vector of outputs
+
+        input.clone() // TODO
+    }
+
+    /// Returns the length of the input vectors this network expects
+    pub fn input_length(&self) -> usize {
+        if self.layers.len() > 0 {
+            self.layers[0].nnodes
+        } else {
+            0
+        }
+    }
 }
 
 impl Layer {
@@ -162,7 +190,7 @@ impl Layer {
     /// Alerts this layer that it is the output layer. Call this instead of `connect` for the output layer.
     pub fn make_output(&mut self) -> &mut Self {
         self.output = true;
-        self.weights = na::DMatrix::<f64>::identity(self.nnodes, 1);
+        self.weights = na::DMatrix::<f64>::identity(self.nnodes, self.nnodes);
         self
     }
 

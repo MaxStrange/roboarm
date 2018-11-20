@@ -18,6 +18,7 @@
 
 /* Externs */
 extern crate config;
+extern crate nalgebra;
 extern crate num;
 extern crate rand;
 
@@ -28,6 +29,7 @@ mod expstate;
 mod network;
 
 /* Uses */
+use nalgebra as na;
 use rand::prelude::*;
 use std::env;
 use std::path;
@@ -223,24 +225,29 @@ fn run_genetic_episode<'a>(experiment: &'a ExperimentConfig, rng: &mut rand::Thr
     state.create_next_generation(experiment, rng);
 
     // Go to random start position
-    let mut base = num::clamp(ANGLE_START_BASE + rng.gen_range(-30, 30), ANGLE_LOWER_LIMIT_BASE, ANGLE_UPPER_LIMIT_BASE);
-    let mut shoulder = num::clamp(ANGLE_START_SHOULDER + rng.gen_range(-30, 30), ANGLE_LOWER_LIMIT_SHOULDER, ANGLE_UPPER_LIMIT_SHOULDER);
-    let mut elbow = num::clamp(ANGLE_START_ELBOW + rng.gen_range(-30, 30), ANGLE_LOWER_LIMIT_ELBOW, ANGLE_UPPER_LIMIT_ELBOW);
-    writeln!(f, "servo {} {}", BASENUM, base);
-    writeln!(f, "servo {} {}", SHOULDERNUM, shoulder);
-    writeln!(f, "servo {} {}", ELBOWNUM, elbow);
-    writeln!(results, "servo {} {}", BASENUM, base);
-    writeln!(results, "servo {} {}", SHOULDERNUM, shoulder);
-    writeln!(results, "servo {} {}", ELBOWNUM, elbow);
+    let base_start: f64 = num::clamp(ANGLE_START_BASE as f64 + rng.gen_range(-30.0, 30.0), ANGLE_LOWER_LIMIT_BASE as f64, ANGLE_UPPER_LIMIT_BASE as f64);
+    let shoulder_start: f64 = num::clamp(ANGLE_START_SHOULDER as f64 + rng.gen_range(-30.0, 30.0), ANGLE_LOWER_LIMIT_SHOULDER as f64, ANGLE_UPPER_LIMIT_SHOULDER as f64);
+    let elbow_start: f64 = num::clamp(ANGLE_START_ELBOW as f64 + rng.gen_range(-30.0, 30.0), ANGLE_LOWER_LIMIT_ELBOW as f64, ANGLE_UPPER_LIMIT_ELBOW as f64);
+    writeln!(f, "servo {} {}", BASENUM, base_start);
+    writeln!(f, "servo {} {}", SHOULDERNUM, shoulder_start);
+    writeln!(f, "servo {} {}", ELBOWNUM, elbow_start);
+    writeln!(results, "servo {} {}", BASENUM, base_start);
+    writeln!(results, "servo {} {}", SHOULDERNUM, shoulder_start);
+    writeln!(results, "servo {} {}", ELBOWNUM, elbow_start);
 
     // Evaluate each network in the generation
-    //for network in state.networks {
-    //    // For each step, get the values for each joint delta from a forward pass through the current network
-    //    for _step in 0..experiment.nsteps_per_episode {
-    //        // TODO
-    //    }
+    for network in state.networks.iter() {
+        // For each step, get the values for each joint delta from a forward pass through the current network
+        let (mut base, mut shoulder, mut elbow) = (base_start, shoulder_start, elbow_start);
+        for _step in 0..experiment.nsteps_per_episode {
+            let input = na::DVector::<f64>::from_vec(network.input_length(), vec!(base, shoulder, elbow));
+            let output = network.forward(&input);
+            base = output[0];
+            shoulder = output[1];
+            elbow = output[2];
+        }
 
-    //    // Now figure out how fit this network is based on how close the arm ended up to the object
-    //    // TODO
-    //}
+        // Now figure out how fit this network is based on how close the arm ended up to the object
+        // TODO
+    }
 }
