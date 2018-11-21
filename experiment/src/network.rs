@@ -138,14 +138,21 @@ impl MultilayerPerceptron {
 
         let mut output = input.clone();
         for layer in self.layers.iter() {
-            output = layer.activate(output);
-            output = (output.transpose() * layer.weights).transpose();
+            output.apply(layer.activation_function);
+            output = (output.transpose() * &layer.weights).transpose();
         }
 
         // The final output is diagonal due to final layer's weights being ID
-        // TODO: Sum across rows to collapse into a column vector of outputs
+        let mut result = na::DVector::<f64>::from_element(self.layers.last().unwrap().nnodes, 0.0);
+        for c in 0..output.ncols() {
+            for r in 0..output.nrows() {
+                if c == r {
+                    result[c] = output[c * output.nrows() + r];
+                }
+            }
+        }
 
-        input.clone() // TODO
+        result
     }
 
     /// Returns the length of the input vectors this network expects

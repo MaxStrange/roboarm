@@ -247,7 +247,7 @@ fn run_genetic_episode<'a>(experiment: &'a ExperimentConfig, rng: &mut rand::Thr
             elbow = output[2];
         }
 
-        // Now figure out how fit this network is based on how close the arm ended up to the object
+        // Now figure out how fit this network is based on how close the arm ended up to the goal position
         // TODO
     }
 }
