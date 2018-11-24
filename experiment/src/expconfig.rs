@@ -88,55 +88,37 @@ impl ExperimentConfig {
         // Parse out the number of networks in a generation if the mode is genetic
         let generation_size = match mode {
             Mode::Random => 0,
-            Mode::Genetic => match parse_genetic_parameter::<u64>(&mut setting_strings, "generation_size".to_string()) {
-                Err(msg) => return Err(msg),
-                Ok(val) => val,
-            },
+            Mode::Genetic => parse_genetic_parameter::<u64>(&mut setting_strings, "generation_size".to_string())?,
         };
 
         // Parse out 'low' if the mode is genetic
         let low = match mode {
             Mode::Random => 0.0,
-            Mode::Genetic => match parse_genetic_parameter::<f64>(&mut setting_strings, "low".to_string()) {
-                Err(msg) => return Err(msg),
-                Ok(val) => val,
-            },
+            Mode::Genetic => parse_genetic_parameter::<f64>(&mut setting_strings, "low".to_string())?,
         };
 
         // Parse out 'high' if the mode is genetic
         let high = match mode {
             Mode::Random => 0.0,
-            Mode::Genetic => match parse_genetic_parameter::<f64>(&mut setting_strings, "high".to_string()) {
-                Err(msg) => return Err(msg),
-                Ok(val) => val,
-            },
+            Mode::Genetic => parse_genetic_parameter::<f64>(&mut setting_strings, "high".to_string())?,
         };
 
         // Parse out 'nkeep' if the mode is genetic
         let nkeep = match mode {
             Mode::Random => 0,
-            Mode::Genetic => match parse_genetic_parameter::<u64>(&mut setting_strings, "nkeep".to_string()) {
-                Err(msg) => return Err(msg),
-                Ok(val) => val,
-            },
+            Mode::Genetic => parse_genetic_parameter::<u64>(&mut setting_strings, "nkeep".to_string())?,
         };
 
         // Parse out 'mutation_stdev' if the mode is genetic
         let mutation_stdev = match mode {
             Mode::Random => 0.0,
-            Mode::Genetic => match parse_genetic_parameter::<f64>(&mut setting_strings, "mutation_stdev".to_string()) {
-                Err(msg) => return Err(msg),
-                Ok(val) => val,
-            },
+            Mode::Genetic => parse_genetic_parameter::<f64>(&mut setting_strings, "mutation_stdev".to_string())?,
         };
 
         // Parse out 'percent_mutate' if the mode is genetic
         let percent_mutate = match mode {
             Mode::Random => 0.0,
-            Mode::Genetic => match parse_genetic_parameter::<f64>(&mut setting_strings, "percent_mutate".to_string()) {
-                Err(msg) => return Err(msg),
-                Ok(val) => val,
-            },
+            Mode::Genetic => parse_genetic_parameter::<f64>(&mut setting_strings, "percent_mutate".to_string())?,
         };
 
         // Check to make sure percent_mutate is within allowed bounds
@@ -146,18 +128,18 @@ impl ExperimentConfig {
             return Err(msg);
         };
 
-        // Parse out 'target_x' if the mode is genetic
+        // Parse out 'target_*' if the mode is genetic
         let target_x = match mode {
             Mode::Random => 0.0,
-            Mode::Genetic => parse_genetic_parameter::<f64>(&mut setting_strings, "target_x".to_string())?
+            Mode::Genetic => parse_genetic_parameter::<f64>(&mut setting_strings, "target_x".to_string())?,
         };
         let target_y = match mode {
             Mode::Random => 0.0,
-            Mode::Genetic => parse_genetic_parameter::<f64>(&mut setting_strings, "target_y".to_string())?
+            Mode::Genetic => parse_genetic_parameter::<f64>(&mut setting_strings, "target_y".to_string())?,
         };
         let target_z = match mode {
             Mode::Random => 0.0,
-            Mode::Genetic => parse_genetic_parameter::<f64>(&mut setting_strings, "target_z".to_string())?
+            Mode::Genetic => parse_genetic_parameter::<f64>(&mut setting_strings, "target_z".to_string())?,
         };
         let target = na::Translation3::new(target_x, target_y, target_z);
 
