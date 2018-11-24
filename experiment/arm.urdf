@@ -1,0 +1,93 @@
+<robot name="snapper_mini">
+
+    <link name="world"/>
+    <joint name="base-joint" type="fixed">
+        <parent link="world"/>
+        <child link="base-link"/>
+    </joint>
+
+    <link name="base-link">
+        <visual>
+            <geometry>
+                <cylinder length="0.04" radius="0.025"/>
+            </geometry>
+            <material name="silver">
+                <color rgba="0.75 0.75 0.75 1"/>
+            </material>
+            <origin rpy="0 0 0" xyz="0 0 0.02"/>
+        </visual>
+    </link>
+    <joint name="torso" type="continuous">
+        <axis xyz="0 0 1"/>
+        <parent link="base-link"/>
+        <child link="trunk"/>
+        <origin rpy="0 0 0" xyz="0 0 0.02"/>
+    </joint>
+
+    <link name="trunk">
+        <visual>
+            <geometry>
+                <cylinder length="0.0" radius="0.0"/>   // TODO
+            </geometry>
+            <material name="silver">
+                <color rgba="0.75 0.75 0.75 1"/>
+            </material>
+            <origin rpy="0 0 0" xyz="0 0 0"/>           // TODO
+        </visual>
+    </link>
+    <joint name="shoulder" type="continuous">
+        <axis xyz="1 0 0"/>
+        <parent link="trunk"/>
+        <child link="upper-arm"/>
+        <origin rpy="0 0 0" xyz="0 0 0"/>               // TODO
+    </joint>
+
+    <link name="upper-arm">
+        <visual>
+            <geometry>
+                <cylinder length="0.0" radius="0.0"/>   // TODO
+            </geometry>
+            <material name="silver">
+                <color rgba="0.75 0.75 0.75 1"/>
+            </material>
+            <origin rpy="0 0 0" xyz="0 0 0"/>           // TODO
+        </visual>
+    </link>
+    <joint name="elbow" type="continuous">
+        <axis xyz="1 0 0"/>
+        <parent link="upper-arm"/>
+        <child link="forearm"/>
+        <origin rpy="0 0 0" xyz="0 0 0"/>               // TODO
+    </joint>
+
+    <link name="forearm">
+        <visual>
+            <geometry>
+                <cylinder length="0.0" radius="0.0"/>   // TODO
+            </geometry>
+            <material name="silver">
+                <color rgba="0.75 0.75 0.75 1"/>
+            </material>
+            <origin rpy="0 0 0" xyz="0 0 0"/>           // TODO
+        </visual>
+    </link>
+    <joint name="wrist" type="continuous">
+        <axis xyz="1 0 0"/>
+        <parent link="forearm"/>
+        <child link="hand"/>
+        <origin rpy="0 0 0" xyz="0 0 0"/>               // TODO
+    </joint>
+
+    <link name="hand">
+        <visual>
+            <geometry>
+                <cylinder length="0.0" radius="0.0"/>   // TODO
+            </geometry>
+            <material name="silver">
+                <color rgba="0.75 0.75 0.75 1"/>
+            </material>
+            <origin rpy="0 0 0" xyz="0 0 0"/>           // TODO
+        </visual>
+    </link>
+
+</robot>
