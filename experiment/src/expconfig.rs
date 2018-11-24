@@ -1,3 +1,4 @@
+use nalgebra as na;
 use std::collections::hash_map::{self, HashMap};
 use std::fmt::{self, Write};
 use std::path::Path;
@@ -26,6 +27,8 @@ pub struct ExperimentConfig {
     pub percent_mutate: f64,
     /// Mutant weights are formed by drawing from a Gaussian of mu=weight_i, stdev=mutation_stdev
     pub mutation_stdev: f64,
+    /// Target location for the gripper. Orientation doesn't matter to us, hence, Translation rather than Isometry. Values are in meters.
+    pub target: na::Translation3<f64>,
 }
 
 #[derive(Debug)]
@@ -143,6 +146,21 @@ impl ExperimentConfig {
             return Err(msg);
         };
 
+        // Parse out 'target_x' if the mode is genetic
+        let target_x = match mode {
+            Mode::Random => 0.0,
+            Mode::Genetic => parse_genetic_parameter::<f64>(&mut setting_strings, "target_x".to_string())?
+        };
+        let target_y = match mode {
+            Mode::Random => 0.0,
+            Mode::Genetic => parse_genetic_parameter::<f64>(&mut setting_strings, "target_y".to_string())?
+        };
+        let target_z = match mode {
+            Mode::Random => 0.0,
+            Mode::Genetic => parse_genetic_parameter::<f64>(&mut setting_strings, "target_z".to_string())?
+        };
+        let target = na::Translation3::new(target_x, target_y, target_z);
+
         // Now print out the settings as we interpreted them
         Ok(ExperimentConfig {
             nsteps_per_episode: nsteps_per_episode,
@@ -155,6 +173,7 @@ impl ExperimentConfig {
             nkeep: nkeep,
             mutation_stdev: mutation_stdev,
             percent_mutate: percent_mutate,
+            target: target,
         })
     }
 }

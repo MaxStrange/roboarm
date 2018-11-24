@@ -7,3 +7,6 @@ randomized_weights_low: -10.0
 randomized_weights_high: 10.0
 mutation_stdev: 0.2
 percent_mutate: 2.0
+target_x: 0.25
+target_y: 0.25
+target_z: 0.25

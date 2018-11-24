@@ -22,6 +22,11 @@ impl ExperimentState {
         }
     }
 
+    /// Adds the next fitness value
+    pub fn add_fitness(&mut self, fitness: f64) {
+        self.evaluations.push(fitness);
+    }
+
     /// Creates the next generation of neural networks
     ///
     /// If the current generation does not contain any networks,
@@ -73,6 +78,7 @@ impl ExperimentState {
             nets_to_keep
         };
         self.generation += 1;
+        self.evaluations.clear();
     }
 
     fn spawn_n_networks(&self, n: usize, low: f64, high: f64, rng: &mut rand::ThreadRng) -> Vec<MultilayerPerceptron> {

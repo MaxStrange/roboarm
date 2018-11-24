@@ -18,6 +18,7 @@
 
 /* Externs */
 extern crate config;
+extern crate k;
 extern crate nalgebra;
 extern crate num;
 extern crate rand;
@@ -29,6 +30,8 @@ mod expstate;
 mod network;
 
 /* Uses */
+use k::prelude::*;
+use k::urdf::FromUrdf;
 use nalgebra as na;
 use rand::prelude::*;
 use std::env;
@@ -44,17 +47,17 @@ use self::expresults::ExperimentResults;
 use self::expstate::ExperimentState;
 
 /* Consts */
-const ANGLE_START_BASE: isize = 90;
-const ANGLE_START_SHOULDER: isize = 10;
-const ANGLE_START_ELBOW: isize = 155;
+const ANGLE_START_BASE: f64 = 90.0;
+const ANGLE_START_SHOULDER: f64 = 10.0;
+const ANGLE_START_ELBOW: f64 = 155.0;
 
-const ANGLE_LOWER_LIMIT_BASE: isize = 0;
-const ANGLE_LOWER_LIMIT_SHOULDER: isize = 0;
-const ANGLE_LOWER_LIMIT_ELBOW: isize = 100;
+const ANGLE_LOWER_LIMIT_BASE: f64 = 0.0;
+const ANGLE_LOWER_LIMIT_SHOULDER: f64 = 0.0;
+const ANGLE_LOWER_LIMIT_ELBOW: f64 = 100.0;
 
-const ANGLE_UPPER_LIMIT_BASE: isize = 180;
-const ANGLE_UPPER_LIMIT_SHOULDER: isize = 50;
-const ANGLE_UPPER_LIMIT_ELBOW: isize = 180;
+const ANGLE_UPPER_LIMIT_BASE: f64 = 180.0;
+const ANGLE_UPPER_LIMIT_SHOULDER: f64 = 50.0;
+const ANGLE_UPPER_LIMIT_ELBOW: f64 = 180.0;
 
 const BASENUM: usize = 0;
 const SHOULDERNUM: usize = 1;
@@ -87,18 +90,34 @@ fn main() {
         },
     };
 
+    // Parse the URDF file
+    let robot = match k::LinkTree::<f64>::from_urdf_file("arm.urdf") {
+        Ok(robot) => robot,
+        Err(e) => {
+            println!("Problem with loading the URDF file: {:?}", e);
+            process::exit(4);
+        },
+    };
+    let mut arm = match k::Manipulator::from_link_tree("hand", &robot) {
+        Some(arm) => arm,
+        None => {
+            println!("Problem pulling out the 'hand' link from the URDF robot. Could not find 'hand' in tree.");
+            process::exit(4);
+        },
+    };
+
     // Inform the user how we parsed their config file
     println!("Running Experiment with Configuration:\n{}", experiment);
 
     // Run the experiment
-    let results = run_experiment(&experiment);
+    let results = run_experiment(&experiment, &mut arm);
 
     // Print and save the results
     println!("{}", results);
     results.save("results.txt".to_string());
 }
 
-fn run_experiment<'a>(experiment: &'a ExperimentConfig) -> ExperimentResults<'a> {
+fn run_experiment<'a>(experiment: &'a ExperimentConfig, arm: &mut k::Manipulator<f64>) -> ExperimentResults<'a> {
     // Create the random number generator
     let mut rng = thread_rng();
 
@@ -112,14 +131,14 @@ fn run_experiment<'a>(experiment: &'a ExperimentConfig) -> ExperimentResults<'a>
     for episode in 0..experiment.nepisodes {
         println!("=== Starting episode {} ===", episode);
         results.set_episode(episode);
-        run_episode(episode, experiment, &mut results, &mut rng, &mut state);
+        run_episode(episode, experiment, &mut results, &mut rng, &mut state, arm);
     }
 
     results.finish();
     results
 }
 
-fn run_episode<'a>(episode: u64, experiment: &'a ExperimentConfig, results: &mut ExperimentResults, rng: &mut rand::ThreadRng, state: &mut ExperimentState) {
+fn run_episode<'a>(episode: u64, experiment: &'a ExperimentConfig, results: &mut ExperimentResults, rng: &mut rand::ThreadRng, state: &mut ExperimentState, arm: &mut k::Manipulator<f64>) {
     // Create the script for this episode
     let mut scriptname = String::new();
     write!(scriptname, "tmpscript_episode_{}.txt", episode);
@@ -138,7 +157,7 @@ fn run_episode<'a>(episode: u64, experiment: &'a ExperimentConfig, results: &mut
     // Take a bunch of steps, with behavior dependent on the experiment configuration
     match experiment.mode {
         Mode::Random => run_random_episode(experiment, rng, results, &mut f),
-        Mode::Genetic => run_genetic_episode(experiment, rng, results, &mut f, state),
+        Mode::Genetic => run_genetic_episode(experiment, rng, results, &mut f, state, arm),
     };
 
     // Make sure to go to home after every episode and spend a few cycles there.
@@ -187,16 +206,16 @@ fn run_episode<'a>(episode: u64, experiment: &'a ExperimentConfig, results: &mut
 
 fn run_random_episode<'a>(experiment: &'a ExperimentConfig, rng: &mut rand::ThreadRng, results: &mut ExperimentResults, f: &mut fs::File) {
     // Starting angles
-    let mut base: isize = ANGLE_START_BASE;
-    let mut shoulder: isize = ANGLE_START_SHOULDER;
-    let mut elbow: isize = ANGLE_START_ELBOW;
+    let mut base: f64 = ANGLE_START_BASE;
+    let mut shoulder: f64 = ANGLE_START_SHOULDER;
+    let mut elbow: f64 = ANGLE_START_ELBOW;
 
     // For each step, do a random step of up to 15 degrees in either direction on each servo
     for _step in 0..experiment.nsteps_per_episode {
         // Generate a bunch of values
-        let randbase = rng.gen_range(-15, 16);
-        let randshoulder = rng.gen_range(-15, 16);
-        let randelbow = rng.gen_range(-15, 16);
+        let randbase = rng.gen_range(-15.0, 16.0);
+        let randshoulder = rng.gen_range(-15.0, 16.0);
+        let randelbow = rng.gen_range(-15.0, 16.0);
 
         // Add the values to the joints
         base += randbase;
@@ -220,7 +239,7 @@ fn run_random_episode<'a>(experiment: &'a ExperimentConfig, rng: &mut rand::Thre
     }
 }
 
-fn run_genetic_episode<'a>(experiment: &'a ExperimentConfig, rng: &mut rand::ThreadRng, results: &mut ExperimentResults, f: &mut fs::File, state: &mut ExperimentState) {
+fn run_genetic_episode<'a>(experiment: &'a ExperimentConfig, rng: &mut rand::ThreadRng, results: &mut ExperimentResults, f: &mut fs::File, state: &mut ExperimentState, arm: &mut k::Manipulator<f64>) {
     // Crate a generation
     state.create_next_generation(experiment, rng);
 
@@ -236,18 +255,47 @@ fn run_genetic_episode<'a>(experiment: &'a ExperimentConfig, rng: &mut rand::Thr
     writeln!(results, "servo {} {}", ELBOWNUM, elbow_start);
 
     // Evaluate each network in the generation
+    let mut evaluations = Vec::<f64>::new();
     for network in state.networks.iter() {
         // For each step, get the values for each joint delta from a forward pass through the current network
         let (mut base, mut shoulder, mut elbow) = (base_start, shoulder_start, elbow_start);
         for _step in 0..experiment.nsteps_per_episode {
             let input = na::DVector::<f64>::from_vec(network.input_length(), vec!(base, shoulder, elbow));
             let output = network.forward(&input);
-            base = output[0];
-            shoulder = output[1];
-            elbow = output[2];
+
+            // Add the resulting values from the network to the current angles
+            base += output[0];
+            shoulder += output[1];
+            elbow += output[2];
+
+            // Clamp the joints to between min and max for each joint
+            base = num::clamp(base, ANGLE_LOWER_LIMIT_BASE, ANGLE_UPPER_LIMIT_BASE);
+            shoulder = num::clamp(shoulder, ANGLE_LOWER_LIMIT_SHOULDER, ANGLE_UPPER_LIMIT_SHOULDER);
+            elbow = num::clamp(elbow, ANGLE_LOWER_LIMIT_ELBOW, ANGLE_UPPER_LIMIT_ELBOW);
+
+            // Write to the file
+            writeln!(f, "servo {} {}", BASENUM, base);
+            writeln!(f, "servo {} {}", SHOULDERNUM, shoulder);
+            writeln!(f, "servo {} {}", ELBOWNUM, elbow);
+
+            // Also write to results
+            writeln!(results, "servo {} {}", BASENUM, base);
+            writeln!(results, "servo {} {}", SHOULDERNUM, shoulder);
+            writeln!(results, "servo {} {}", ELBOWNUM, elbow);
         }
 
         // Now figure out how fit this network is based on how close the arm ended up to the goal position
-        // TODO
+        match arm.set_joint_angles(&vec![base, shoulder, elbow]) {
+            Ok(_) => (),
+            Err(e) => panic!("Problem setting joint angles: {:?}", e),
+        }
+        let end = arm.end_transform().translation.vector;
+        let (endx, endy, endz) = (end[0], end[1], end[2]);
+        let fitness = (endx - experiment.target.vector[0]) + (endy - experiment.target.vector[1]) + (endz - experiment.target.vector[2]);
+        evaluations.push(fitness);
+    }
+
+    for fitness in evaluations {
+        state.add_fitness(fitness);
     }
 }
