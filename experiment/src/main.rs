@@ -299,6 +299,7 @@ fn run_genetic_episode<'a>(experiment: &'a ExperimentConfig, rng: &mut rand::Thr
         let end = arm.end_transform().translation.vector;
         let (endx, endy, endz) = (end[0], end[1], end[2]);
         let fitness = (endx - experiment.target.vector[0]) + (endy - experiment.target.vector[1]) + (endz - experiment.target.vector[2]);
+        writeln!(results, "Fitness for network {} {}", networkidx, fitness);
         evaluations.push(fitness);
 
         // Put the joints back to their start positions for the next network
