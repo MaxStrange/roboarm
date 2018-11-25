@@ -48,7 +48,7 @@ impl ExperimentConfig {
 
         let nsteps_per_episode_str = match setting_strings.entry("nsteps_per_episode".to_string()) {
             hash_map::Entry::Occupied(o) => o,
-            hash_map::Entry::Vacant(_) => return Err("Missing nsteps_per_episode in config file.".to_string()),
+            hash_map::Entry::Vacant(_) => return Err("Missing 'nsteps_per_episode' in config file.".to_string()),
         };
 
         let nsteps_per_episode = match nsteps_per_episode_str.get().parse::<u64>() {
@@ -58,7 +58,7 @@ impl ExperimentConfig {
 
         let nepisodes_str = match setting_strings.entry("nepisodes".to_string()) {
             hash_map::Entry::Occupied(o) => o,
-            hash_map::Entry::Vacant(_) => return Err("Missing nepisodes in config file.".to_string()),
+            hash_map::Entry::Vacant(_) => return Err("Missing 'nepisodes' in config file.".to_string()),
         };
 
         let nepisodes = match nepisodes_str.get().parse::<u64>() {
@@ -68,7 +68,7 @@ impl ExperimentConfig {
 
         let modestr = match setting_strings.entry("mode".to_string()) {
             hash_map::Entry::Occupied(o) => o,
-            hash_map::Entry::Vacant(_) => return Err("Missing mode in config file.".to_string()),
+            hash_map::Entry::Vacant(_) => return Err("Missing 'mode' in config file.".to_string()),
         }.get().clone();
 
         // Try to convert the mode into one of either Mode::Random or Mode::Genetic
@@ -82,9 +82,16 @@ impl ExperimentConfig {
             },
         };
 
+        // Parse out 'com'
         let comstr = match setting_strings.entry("com".to_string()) {
             hash_map::Entry::Occupied(o) => o,
-            hash_map::Entry::Vacant(_) => return Err("Missing com in config file.".to_string()),
+            hash_map::Entry::Vacant(_) => return Err("Missing 'com' in config file.".to_string()),
+        }.get().clone();
+
+        // Parse out 'arm_urdf'
+        let urdfpath = match setting_strings.entry("arm_urdf".to_string()) {
+            hash_map::Entry::Occupied(o) => o,
+            hash_map::Entry::Vacant(_) => return Err("Missing 'arm_urdf' in config file.".to_string()),
         }.get().clone();
 
         // Parse out the number of networks in a generation if the mode is genetic
@@ -144,12 +151,6 @@ impl ExperimentConfig {
             Mode::Genetic => parse_genetic_parameter::<f64>(&mut setting_strings, "target_z".to_string())?,
         };
         let target = na::Translation3::new(target_x, target_y, target_z);
-
-        // Parse out 'arm_urdf' if the mode is genetic
-        let urdfpath = match mode {
-            Mode::Random => "".to_string(),
-            Mode::Genetic => parse_genetic_parameter::<String>(&mut setting_strings, "arm_urdf".to_string())?,
-        };
 
         // Now print out the settings as we interpreted them
         Ok(ExperimentConfig {
