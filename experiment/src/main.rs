@@ -308,7 +308,7 @@ fn run_genetic_episode<'a>(experiment: &'a ExperimentConfig, rng: &mut rand::Thr
         let end = arm.end_transform().translation.vector;
         let (endx, endy, endz) = (end[0], end[1], end[2]);
         let (dx, dy, dz) = (endx - experiment.target.vector[0], endy - experiment.target.vector[1], endz - experiment.target.vector[2]);
-        let fitness = (dx * dx + dy * dy + dz * dz).sqrt();
+        let fitness = 1.0 / ((dx * dx + dy * dy + dz * dz).sqrt() + 1E-9);
         writeln!(results, "Fitness for network {} {}", networkidx, fitness);
         evaluations.push(fitness);
 
