@@ -9,12 +9,6 @@
 //!
 //! The other mode (Genetic Algorithm mode), the robot arm will get its
 //! joint angles from a genetic algorithm.
-//!
-//! The config file must have the following items:
-//! mode: 'random' or 'genetic'
-//! nsteps_per_episode: integer value
-//! nepisodes: interger value
-//! com: com_port_or_dev_path
 
 /* Externs */
 extern crate config;
@@ -131,11 +125,26 @@ fn run_experiment<'a>(experiment: &'a ExperimentConfig, arm: &mut k::Manipulator
     for episode in 0..experiment.nepisodes {
         println!("=== Starting episode {} ===", episode);
         results.set_episode(episode);
-        run_episode(episode, experiment, &mut results, &mut rng, &mut state, arm);
+        if experiment.comstr == "simulate" {
+            run_simulation(experiment, &mut results, &mut rng, &mut state, arm);
+        } else {
+            run_episode(episode, experiment, &mut results, &mut rng, &mut state, arm);
+        }
     }
 
     results.finish();
     results
+}
+
+fn run_simulation<'a>(experiment: &'a ExperimentConfig, results: &mut ExperimentResults, rng: &mut rand::ThreadRng, state: &mut ExperimentState, arm: &mut k::Manipulator<f64>) {
+    println!("Running simulation");
+
+    // Create a buffer to put the commands (the run_*_episode functions need a script to write to)
+    let mut f = Vec::<u8>::new();
+    match experiment.mode {
+        Mode::Random => run_random_episode(experiment, rng, results, &mut f),
+        Mode::Genetic => run_genetic_episode(experiment, rng, results, &mut f, state, arm),
+    };
 }
 
 fn run_episode<'a>(episode: u64, experiment: &'a ExperimentConfig, results: &mut ExperimentResults, rng: &mut rand::ThreadRng, state: &mut ExperimentState, arm: &mut k::Manipulator<f64>) {
@@ -204,7 +213,7 @@ fn run_episode<'a>(episode: u64, experiment: &'a ExperimentConfig, results: &mut
     };
 }
 
-fn run_random_episode<'a>(experiment: &'a ExperimentConfig, rng: &mut rand::ThreadRng, results: &mut ExperimentResults, f: &mut fs::File) {
+fn run_random_episode<'a>(experiment: &'a ExperimentConfig, rng: &mut rand::ThreadRng, results: &mut ExperimentResults, f: &mut dyn std::io::Write) {
     // Starting angles
     let mut base: f64 = ANGLE_START_BASE;
     let mut shoulder: f64 = ANGLE_START_SHOULDER;
@@ -239,7 +248,7 @@ fn run_random_episode<'a>(experiment: &'a ExperimentConfig, rng: &mut rand::Thre
     }
 }
 
-fn run_genetic_episode<'a>(experiment: &'a ExperimentConfig, rng: &mut rand::ThreadRng, results: &mut ExperimentResults, f: &mut fs::File, state: &mut ExperimentState, arm: &mut k::Manipulator<f64>) {
+fn run_genetic_episode<'a>(experiment: &'a ExperimentConfig, rng: &mut rand::ThreadRng, results: &mut ExperimentResults, f: &mut dyn std::io::Write, state: &mut ExperimentState, arm: &mut k::Manipulator<f64>) {
     // Crate a generation
     state.create_next_generation(experiment, rng);
 
@@ -298,7 +307,8 @@ fn run_genetic_episode<'a>(experiment: &'a ExperimentConfig, rng: &mut rand::Thr
         }
         let end = arm.end_transform().translation.vector;
         let (endx, endy, endz) = (end[0], end[1], end[2]);
-        let fitness = (endx - experiment.target.vector[0]) + (endy - experiment.target.vector[1]) + (endz - experiment.target.vector[2]);
+        let (dx, dy, dz) = (endx - experiment.target.vector[0], endy - experiment.target.vector[1], endz - experiment.target.vector[2]);
+        let fitness = (dx * dx + dy * dy + dz * dz).sqrt();
         writeln!(results, "Fitness for network {} {}", networkidx, fitness);
         evaluations.push(fitness);
 

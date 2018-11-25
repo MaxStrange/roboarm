@@ -189,9 +189,23 @@ fn parse_genetic_parameter<T: FromStr>(setting_strings: &mut HashMap<String, Str
 
 impl fmt::Display for ExperimentConfig {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "Experiment Configuration:");
-        writeln!(f, "Number of Steps per Episode: {}", self.nsteps_per_episode);
-        writeln!(f, "Number of Episodes: {}", self.nepisodes);
-        writeln!(f, "Mode: {:?}", self.mode)
+        writeln!(f, "Experiment Configuration:")?;
+        writeln!(f, "Number of Steps per Episode: {}", self.nsteps_per_episode)?;
+        writeln!(f, "Number of Episodes: {}", self.nepisodes)?;
+        writeln!(f, "Mode: {:?}", self.mode)?;
+        writeln!(f, "COM: {}", self.comstr)?;
+        match self.mode {
+            Mode::Genetic => {
+                writeln!(f, "Generation size: {}", self.generation_size)?;
+                writeln!(f, "Random weight low threshold: {}", self.low)?;
+                writeln!(f, "Random weight high threshold: {}", self.high)?;
+                writeln!(f, "Number of networks to keep between generations: {}", self.nkeep)?;
+                writeln!(f, "Rough percentage of weights in a network to mutate: {}", self.percent_mutate)?;
+                writeln!(f, "Mutation Standard Deviation: {}", self.mutation_stdev)?;
+            },
+            _ => (),
+        }
+        writeln!(f, "Target for gripper: {:?}", self.target)?;
+        writeln!(f, "Path to URDF file: {}", self.urdfpath)
     }
 }
