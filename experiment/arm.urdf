@@ -3,90 +3,90 @@
     <link name="world"/>
     <joint name="base-joint" type="fixed">
         <parent link="world"/>
-        <child link="base-link"/>
+        <child link="base"/>
     </joint>
 
-    <link name="base-link">
+    <link name="base">
         <visual>
             <geometry>
-                <cylinder length="0.04" radius="0.025"/>
+                <cylinder length="0.035" radius="0.025"/>
             </geometry>
             <material name="silver">
                 <color rgba="0.75 0.75 0.75 1"/>
             </material>
-            <origin rpy="0 0 0" xyz="0 0 0.02"/>
+            <origin rpy="0 0 0" xyz="0 0 0.01625"/>
         </visual>
     </link>
-    <joint name="torso" type="continuous">
+    <joint name="hip" type="continuous">
         <axis xyz="0 0 1"/>
-        <parent link="base-link"/>
-        <child link="trunk"/>
-        <origin rpy="0 0 0" xyz="0 0 0.02"/>
+        <parent link="base"/>
+        <child link="torso"/>
+        <origin rpy="0 0 0" xyz="0 0 0.035"/>
     </joint>
 
-    <link name="trunk">
+    <link name="torso">
         <visual>
             <geometry>
-                <cylinder length="0.0" radius="0.0"/>   // TODO
+                <cylinder length="0.02" radius="0.01"/>
             </geometry>
             <material name="silver">
                 <color rgba="0.75 0.75 0.75 1"/>
             </material>
-            <origin rpy="0 0 0" xyz="0 0 0"/>           // TODO
+            <origin rpy="0 0 0" xyz="0 0 0.01"/>
         </visual>
     </link>
     <joint name="shoulder" type="continuous">
         <axis xyz="1 0 0"/>
-        <parent link="trunk"/>
+        <parent link="torso"/>
         <child link="upper-arm"/>
-        <origin rpy="0 0 0" xyz="0 0 0"/>               // TODO
+        <origin rpy="0 0 0" xyz="0 0 0.02"/>
     </joint>
 
     <link name="upper-arm">
         <visual>
             <geometry>
-                <cylinder length="0.0" radius="0.0"/>   // TODO
+                <cylinder length="0.05" radius="0.02"/>
             </geometry>
             <material name="silver">
                 <color rgba="0.75 0.75 0.75 1"/>
             </material>
-            <origin rpy="0 0 0" xyz="0 0 0"/>           // TODO
+            <origin rpy="0 0 0" xyz="0 0.01 0.025"/>
         </visual>
     </link>
     <joint name="elbow" type="continuous">
         <axis xyz="1 0 0"/>
         <parent link="upper-arm"/>
         <child link="forearm"/>
-        <origin rpy="0 0 0" xyz="0 0 0"/>               // TODO
+        <origin rpy="0 0 0" xyz="0 0.02 0.05"/>
     </joint>
 
     <link name="forearm">
         <visual>
             <geometry>
-                <cylinder length="0.0" radius="0.0"/>   // TODO
+                <cylinder length="0.05" radius="0.01"/>
             </geometry>
             <material name="silver">
                 <color rgba="0.75 0.75 0.75 1"/>
             </material>
-            <origin rpy="0 0 0" xyz="0 0 0"/>           // TODO
+            <origin rpy="0 0 0" xyz="0 0 0.025"/>
         </visual>
     </link>
     <joint name="wrist" type="continuous">
         <axis xyz="1 0 0"/>
         <parent link="forearm"/>
         <child link="hand"/>
-        <origin rpy="0 0 0" xyz="0 0 0"/>               // TODO
+        <origin rpy="0 0 0" xyz="0 0 0.05"/>
     </joint>
 
     <link name="hand">
         <visual>
             <geometry>
-                <cylinder length="0.0" radius="0.0"/>   // TODO
+                <cylinder length="0.07" radius="0.01"/>
             </geometry>
             <material name="silver">
                 <color rgba="0.75 0.75 0.75 1"/>
             </material>
-            <origin rpy="0 0 0" xyz="0 0 0"/>           // TODO
+            <origin rpy="0 0 0" xyz="0 0 0.035"/>
         </visual>
     </link>
 
