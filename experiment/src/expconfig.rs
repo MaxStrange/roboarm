@@ -29,6 +29,8 @@ pub struct ExperimentConfig {
     pub mutation_stdev: f64,
     /// Target location for the gripper. Orientation doesn't matter to us, hence, Translation rather than Isometry. Values are in meters.
     pub target: na::Translation3<f64>,
+    /// Path to the Arm URDF file
+    pub urdfpath: String,
 }
 
 #[derive(Debug)]
@@ -91,22 +93,22 @@ impl ExperimentConfig {
             Mode::Genetic => parse_genetic_parameter::<u64>(&mut setting_strings, "generation_size".to_string())?,
         };
 
-        // Parse out 'low' if the mode is genetic
+        // Parse out 'randomized_weights_low' if the mode is genetic
         let low = match mode {
             Mode::Random => 0.0,
-            Mode::Genetic => parse_genetic_parameter::<f64>(&mut setting_strings, "low".to_string())?,
+            Mode::Genetic => parse_genetic_parameter::<f64>(&mut setting_strings, "randomized_weights_low".to_string())?,
         };
 
-        // Parse out 'high' if the mode is genetic
+        // Parse out 'randomized_weights_high' if the mode is genetic
         let high = match mode {
             Mode::Random => 0.0,
-            Mode::Genetic => parse_genetic_parameter::<f64>(&mut setting_strings, "high".to_string())?,
+            Mode::Genetic => parse_genetic_parameter::<f64>(&mut setting_strings, "randomized_weights_high".to_string())?,
         };
 
-        // Parse out 'nkeep' if the mode is genetic
+        // Parse out 'nkeep_between_generations' if the mode is genetic
         let nkeep = match mode {
             Mode::Random => 0,
-            Mode::Genetic => parse_genetic_parameter::<u64>(&mut setting_strings, "nkeep".to_string())?,
+            Mode::Genetic => parse_genetic_parameter::<u64>(&mut setting_strings, "nkeep_between_generations".to_string())?,
         };
 
         // Parse out 'mutation_stdev' if the mode is genetic
@@ -143,6 +145,12 @@ impl ExperimentConfig {
         };
         let target = na::Translation3::new(target_x, target_y, target_z);
 
+        // Parse out 'arm_urdf' if the mode is genetic
+        let urdfpath = match mode {
+            Mode::Random => "".to_string(),
+            Mode::Genetic => parse_genetic_parameter::<String>(&mut setting_strings, "arm_urdf".to_string())?,
+        };
+
         // Now print out the settings as we interpreted them
         Ok(ExperimentConfig {
             nsteps_per_episode: nsteps_per_episode,
@@ -156,6 +164,7 @@ impl ExperimentConfig {
             mutation_stdev: mutation_stdev,
             percent_mutate: percent_mutate,
             target: target,
+            urdfpath: urdfpath,
         })
     }
 }

@@ -91,7 +91,7 @@ fn main() {
     };
 
     // Parse the URDF file
-    let robot = match k::LinkTree::<f64>::from_urdf_file("arm.urdf") {
+    let robot = match k::LinkTree::<f64>::from_urdf_file(&experiment.urdfpath) {
         Ok(robot) => robot,
         Err(e) => {
             println!("Problem with loading the URDF file: {:?}", e);
@@ -256,12 +256,19 @@ fn run_genetic_episode<'a>(experiment: &'a ExperimentConfig, rng: &mut rand::Thr
 
     // Evaluate each network in the generation
     let mut evaluations = Vec::<f64>::new();
-    for network in state.networks.iter() {
+    for (networkidx, network) in state.networks.iter().enumerate() {
+        writeln!(results, "network {}", networkidx);
+
         // For each step, get the values for each joint delta from a forward pass through the current network
         let (mut base, mut shoulder, mut elbow) = (base_start, shoulder_start, elbow_start);
         for _step in 0..experiment.nsteps_per_episode {
             let input = na::DVector::<f64>::from_vec(network.input_length(), vec!(base, shoulder, elbow));
-            let output = network.forward(&input);
+            let mut output = network.forward(&input);
+
+            // Clamp output deltas to -15, +15
+            output[0] = num::clamp(output[0], -15.0, 15.0);
+            output[1] = num::clamp(output[1], -15.0, 15.0);
+            output[2] = num::clamp(output[2], -15.0, 15.0);
 
             // Add the resulting values from the network to the current angles
             base += output[0];
@@ -285,7 +292,7 @@ fn run_genetic_episode<'a>(experiment: &'a ExperimentConfig, rng: &mut rand::Thr
         }
 
         // Now figure out how fit this network is based on how close the arm ended up to the goal position
-        match arm.set_joint_angles(&vec![base, shoulder, elbow]) {
+        match arm.set_joint_angles(&vec![base, shoulder, elbow, 0.0]) {
             Ok(_) => (),
             Err(e) => panic!("Problem setting joint angles: {:?}", e),
         }
@@ -293,6 +300,14 @@ fn run_genetic_episode<'a>(experiment: &'a ExperimentConfig, rng: &mut rand::Thr
         let (endx, endy, endz) = (end[0], end[1], end[2]);
         let fitness = (endx - experiment.target.vector[0]) + (endy - experiment.target.vector[1]) + (endz - experiment.target.vector[2]);
         evaluations.push(fitness);
+
+        // Put the joints back to their start positions for the next network
+        writeln!(f, "servo {} {}", BASENUM, base_start);
+        writeln!(f, "servo {} {}", SHOULDERNUM, shoulder_start);
+        writeln!(f, "servo {} {}", ELBOWNUM, elbow_start);
+        writeln!(results, "servo {} {}", BASENUM, base_start);
+        writeln!(results, "servo {} {}", SHOULDERNUM, shoulder_start);
+        writeln!(results, "servo {} {}", ELBOWNUM, elbow_start);
     }
 
     for fitness in evaluations {
