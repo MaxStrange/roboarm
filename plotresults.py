@@ -16,23 +16,27 @@ class Episode:
         Lines must be a list of strings.
         """
         for line in lines:
-            if line.lower().startswith("episode "):
+            if line.strip().lower().startswith("episode "):
                 return True
-            return False
+        return False
 
     @staticmethod
     def parse_from_contents(lines):
         """
         Removes the lines needed to parse the episode and parses it.
         """
+        ended = False
         parse_mode = True
         for i, line in enumerate(lines):
             if line.lower().startswith("episode ") and parse_mode:
                 start_line = i
                 parse_mode = False
             elif line.lower().startswith("episode ") and not parse_mode:
-                end_line = i + 1
+                end_line = i
+                ended = True
                 break
+        if not ended:
+            end_line = len(lines)
 
         genetic = False
         for line in lines:
@@ -62,25 +66,30 @@ class Network:
     @staticmethod
     def present_in_contents(lines):
         for line in lines:
-            if line.lower().contains("network "):
+            if "network " in line.lower():
                 return True
         return False
 
     @staticmethod
     def parse_from_contents(lines):
+        ended = False
         parse_mode = True
         for i, line in enumerate(lines):
             if line.lower().startswith("network ") and parse_mode:
                 start_line = i
                 parse_mode = False
             elif line.lower().startswith("episode ") and not parse_mode:
-                end_line = i + 1
+                end_line = i
+                ended = True
                 break
+
+        if not ended:
+            end_line = len(lines)
         return Network(lines[start_line:end_line]), lines[end_line:]
 
 class GeneticEpisode(Episode):
     def __init__(self, lines):
-        super.__init__(lines)
+        super().__init__(lines)
         servo_starting_values = {}
         self.networks = []
         # Parse out the starting values
@@ -98,7 +107,7 @@ class GeneticEpisode(Episode):
 
 class RandomEpisode(Episode):
     def __init__(self, lines):
-        super.__init__(lines)
+        super().__init__(lines)
         self.servos = {}
         for line in lines:
             if line.lower().startswith("servo "):
