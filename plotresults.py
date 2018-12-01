@@ -50,18 +50,28 @@ class Episode:
 
 class Network:
     def __init__(self, lines):
-        self.index = -1
+        self.fitness = None
+        self.index = None
         self.servos = {}
+        have_seen_network = False
         for line in lines:
-            if line.lower().startswith("network "):
+            if line.lower().startswith("network ") and not have_seen_network:
                 self.index = int(line.strip().split(' ')[-1])
+                have_seen_network = True
+            elif line.lower().startswith("network ") and have_seen_network:
+                assert False, "Found a second network index in this network's lines for parsing."
             elif line.lower().startswith("servo "):
                 _, number, value = line.lower().strip().split(' ')
-                self.servos[int(number)] = float(value)
+                if int(number) in self.servos:
+                    self.servos[int(number)].append(float(value))
+                else:
+                    self.servos[int(number)] = [float(value)]
             elif line.lower().startswith("fitness "):
                 self.fitness = float(line.strip().split(' ')[-1])
+                break
 
-        assert self.index != -1, "Could not find an index for this network"
+        assert self.index != None, "Could not find an index for this network"
+        assert self.fitness != None, "Could not find a fitness for network index {}".format(self.index)
 
     @staticmethod
     def present_in_contents(lines):
@@ -78,7 +88,7 @@ class Network:
             if line.lower().startswith("network ") and parse_mode:
                 start_line = i
                 parse_mode = False
-            elif line.lower().startswith("episode ") and not parse_mode:
+            elif line.lower().startswith("network ") and not parse_mode:
                 end_line = i
                 ended = True
                 break
@@ -105,17 +115,26 @@ class GeneticEpisode(Episode):
             network, lines = Network.parse_from_contents(lines)
             self.networks.append(network)
 
+        assert self.networks, "Could not find any networks in GeneticEpisode {}".format(self.episode_number)
+        print("Parsed GeneticEpisode {} of length {} networks, each of length {}".format(
+            self.episode_number, len(self.networks), len(self.networks[0].servos[0])
+        ))
+
 class RandomEpisode(Episode):
     def __init__(self, lines):
         super().__init__(lines)
         self.servos = {}
         for line in lines:
-            if line.lower().startswith("servo "):
+            if line.lower().strip().startswith("servo "):
                 _, number, value = line.lower().strip().split(' ')
-                self.servos[int(number)] = float(value)
+                if int(number) in self.servos:
+                    self.servos[int(number)].append(float(value))
+                else:
+                    self.servos[int(number)] = [float(value)]
 
         # Assert that this episode contains at least one recording
-        self.servo_ids = [k for k in self.servos.keys()].sort()
+        self.servo_ids = [k for k in self.servos.keys()]
+        self.servo_ids.sort()
         assert self.servo_ids, "Could not find any servos in RandomEpisode {}.".format(self.episode_number)
 
         # Assert that this episode contains the same number of recordings for each servo
@@ -161,5 +180,4 @@ if __name__ == "__main__":
     experiment = ExperimentResults(path)
 
     # Summarize the parsed experiment
-    print("Parsed Experiment:")
     print(experiment)
