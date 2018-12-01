@@ -1,9 +1,15 @@
 """
 Plots the results of an experiment by parsing a results.txt file.
 """
+import enum
+import numpy as np
 import matplotlib.pyplot as plt
 import os
 import sys
+
+class ExperimentType(enum.Enum):
+    RANDOM = 0
+    GENETIC = 1
 
 class Episode:
     def __init__(self, lines):
@@ -143,6 +149,18 @@ class RandomEpisode(Episode):
             assert len(self.servos[id]) == nservos, "Number of recordings is not the same for all servos in RandomEpisode {}.".format(self.episode_number)
         print("Parsed RandomEpisode {} of length {}".format(self.episode_number, nservos))
 
+    @property
+    def data(self):
+        """
+        Returns this Episode's data in the form of a NumpyArray of shape (nservos, nsteps)
+        """
+        arrays = []
+        for servo in self.servo_ids:
+            arr = np.array(self.servos[servo])
+            arrays.append(arr)
+        ret = np.vstack(arrays)
+        return ret
+
 class ExperimentResults:
     def __init__(self, path):
         """
@@ -159,10 +177,50 @@ class ExperimentResults:
             self.episodes.append(ep)
 
         if self.episodes:
-            self.type = type(self.episodes[0])
+            if type(self.episodes[0]) == RandomEpisode:
+                self.type = ExperimentType.RANDOM
+            elif type(self.episodes[0]) == GeneticEpisode:
+                self.type = ExperimentType.GENETIC
+            else:
+                assert False, "ExperimentResults does not understand the type {}".format(type(self.episodes[0]))
 
     def __str__(self):
         return "Experiment is of type {} and consists of {} episodes.".format(self.type, len(self.episodes))
+
+    @property
+    def data(self):
+        """
+        For a RANDOM Experiment:
+        Returns all the servo values for each servo and episode in this experiment
+        in the form of a Numpy Array of shape (nservos, nsteps_per_episode * nepisodes).
+
+        For a GENETIC Experiment:
+        ???
+        """
+        if self.type == ExperimentType.RANDOM:
+            eparrays = []
+            for ep in self.episodes:
+                eparrays.append(ep.data)
+            res = np.hstack(eparrays)
+            return res
+        else:
+            return None
+
+def plot_random(experiment):
+    """
+    Plots the given experiment, which is assumed to be of type==ExperimentType.RANDOM
+    """
+    plt.title("Random Experiment's Servo Values Across Episodes")
+    plt.xlabel("Step")
+    plt.ylabel("Degrees")
+    plt.plot(experiment.data)
+    plt.show()
+
+def plot_genetic(experiment):
+    """
+    Plots the given experiment, which is assumed to be of type==ExperimentType.GENETIC
+    """
+    pass
 
 if __name__ == "__main__":
     if len(sys.argv) != 2 and not os.path.exists("results.txt"):
@@ -178,6 +236,11 @@ if __name__ == "__main__":
         path = "results.txt"
 
     experiment = ExperimentResults(path)
-
-    # Summarize the parsed experiment
     print(experiment)
+
+    if experiment.type == ExperimentType.RANDOM:
+        plot_random(experiment)
+    elif experiment.type == ExperimentType.GENETIC:
+        plot_genetic(experiment)
+    else:
+        raise Exception("Unsupported experiment type: {}".format(experiment.type))
