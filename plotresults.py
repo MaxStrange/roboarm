@@ -114,6 +114,16 @@ class RandomEpisode(Episode):
                 _, number, value = line.lower().strip().split(' ')
                 self.servos[int(number)] = float(value)
 
+        # Assert that this episode contains at least one recording
+        self.servo_ids = [k for k in self.servos.keys()].sort()
+        assert self.servo_ids, "Could not find any servos in RandomEpisode {}.".format(self.episode_number)
+
+        # Assert that this episode contains the same number of recordings for each servo
+        nservos = len(self.servos[self.servo_ids[0]])
+        for id in self.servo_ids:
+            assert len(self.servos[id]) == nservos, "Number of recordings is not the same for all servos in RandomEpisode {}.".format(self.episode_number)
+        print("Parsed RandomEpisode {} of length {}".format(self.episode_number, nservos))
+
 class ExperimentResults:
     def __init__(self, path):
         """
