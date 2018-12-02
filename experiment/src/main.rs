@@ -106,8 +106,7 @@ fn main() {
     // Run the experiment
     let results = run_experiment(&experiment, &mut arm);
 
-    // Print and save the results
-    println!("{}", results);
+    // Save the results
     results.save("results.txt".to_string());
 }
 
