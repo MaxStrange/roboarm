@@ -79,6 +79,29 @@ class Network:
         assert self.index != None, "Could not find an index for this network"
         assert self.fitness != None, "Could not find a fitness for network index {}".format(self.index)
 
+        # Assert that this network contains at least one recording
+        self.servo_ids = [k for k in self.servos.keys()]
+        self.servo_ids.sort()
+        self.nservos = len(self.servo_ids)
+        assert self.servo_ids, "Could not find any servos in Network {}.".format(self.index)
+
+        # Assert that this network contains the same number of recordings for each servo
+        self.nsteps = len(self.servos[self.servo_ids[0]])
+        for id in self.servo_ids:
+            assert len(self.servos[id]) == self.nsteps, "Number of recordings is not the same for all servos in Network {}.".format(self.index)
+
+    @property
+    def data(self):
+        """
+        Returns a Numpy Array of shape (nservos, nsteps).
+        """
+        servo_data = []
+        for servo in self.servo_ids:
+            servo_data.append(self.servos[servo])
+        ret = np.vstack(servo_data)
+        assert ret.shape == (self.nservos, self.nsteps)
+        return ret
+
     @staticmethod
     def present_in_contents(lines):
         for line in lines:
@@ -122,9 +145,48 @@ class GeneticEpisode(Episode):
             self.networks.append(network)
 
         assert self.networks, "Could not find any networks in GeneticEpisode {}".format(self.episode_number)
-        print("Parsed GeneticEpisode {} of length {} networks, each of length {}".format(
-            self.episode_number, len(self.networks), len(self.networks[0].servos[0])
+        self.nsteps = self.networks[0].nsteps
+        for net in self.networks:
+            assert net.nsteps == self.nsteps, "Not all networks in GeneticEpisode {} have the same number of steps. Network {} has {} but should have {}".format(
+                self.episode_number, net.index, net.nsteps, self.nsteps
+            )
+        self.nservos = self.networks[0].nservos
+        self.nnetworks = len(self.networks)
+        self.fitnesses = {net.index: net.fitness for net in self.networks}
+        self.highest_fitness = max(self.fitnesses.values())
+        print("Parsed GeneticEpisode (Generation) {} of length {} networks, each evaluated on {} steps.".format(
+            self.episode_number, self.nnetworks, self.nsteps
         ))
+
+    @property
+    def data(self):
+        """
+        Returns a Numpy Array of shape (nservos, nsteps, nnetworks).
+        Since the networks do not actually have continuity across generations, it probably makes
+        more sense to call episode.data_sorted_by_fitness instead of this.
+        """
+        netdata = []
+        for network in self.networks:
+            netdata.append(network.data)
+        ret = np.array(netdata).reshape((self.nservos, self.nsteps, self.nnetworks))
+        return ret
+
+    @property
+    def data_sorted_by_fitness(self):
+        """
+        Returns a Numpy Array of shape (nservos, nsteps, nnetworks) just like self.data, but
+        rather than aligning the matrices of (servos, steps) to networks based simply on the
+        network indexes, we align them based on the fitness of each network, so that
+        the resulting data array is organized by most fit to least fit in the third dimension.
+        """
+        netids = [i for i in range(self.nnetworks)]
+        network_ids_sorted_by_fitness = sorted(list(netids), key=lambda id: self.fitnesses[id], reverse=True)
+        netdata = []
+        for networkid in network_ids_sorted_by_fitness:
+            netdata.append(self.networks[networkid].data)
+        ret = np.array(netdata).reshape((self.nservos, self.nsteps, self.nnetworks))
+        assert ret.shape == (self.nservos, self.nsteps, self.nnetworks)
+        return ret
 
 class RandomEpisode(Episode):
     def __init__(self, lines):
@@ -141,13 +203,14 @@ class RandomEpisode(Episode):
         # Assert that this episode contains at least one recording
         self.servo_ids = [k for k in self.servos.keys()]
         self.servo_ids.sort()
+        self.nservos = len(self.servo_ids)
         assert self.servo_ids, "Could not find any servos in RandomEpisode {}.".format(self.episode_number)
 
         # Assert that this episode contains the same number of recordings for each servo
-        nservos = len(self.servos[self.servo_ids[0]])
+        self.nsteps = len(self.servos[self.servo_ids[0]])
         for id in self.servo_ids:
-            assert len(self.servos[id]) == nservos, "Number of recordings is not the same for all servos in RandomEpisode {}.".format(self.episode_number)
-        print("Parsed RandomEpisode {} of length {}".format(self.episode_number, nservos))
+            assert len(self.servos[id]) == self.nsteps, "Number of recordings is not the same for all servos in RandomEpisode {}.".format(self.episode_number)
+        print("Parsed RandomEpisode {} of length {}".format(self.episode_number, self.nsteps))
 
     @property
     def data(self):
@@ -159,6 +222,7 @@ class RandomEpisode(Episode):
             arr = np.array(self.servos[servo])
             arrays.append(arr)
         ret = np.vstack(arrays)
+        assert ret.shape == (len(self.servo_ids), self.nsteps)
         return ret
 
 class ExperimentResults:
@@ -184,6 +248,11 @@ class ExperimentResults:
             else:
                 assert False, "ExperimentResults does not understand the type {}".format(type(self.episodes[0]))
 
+        self.nepisodes = len(self.episodes)
+        self.nservos = self.episodes[0].nservos
+        self.nsteps_per_episode = self.episodes[0].nsteps
+        self.nnetworks = self.episodes[0].nnetworks if self.type == ExperimentType.GENETIC else None
+
     def __str__(self):
         return "Experiment is of type {} and consists of {} episodes.".format(self.type, len(self.episodes))
 
@@ -195,14 +264,34 @@ class ExperimentResults:
         in the form of a Numpy Array of shape (nservos, nsteps_per_episode * nepisodes).
 
         For a GENETIC Experiment:
-        ???
+        Returns a tuple of the form (fitness_data, servo_data), where:
+
+        - fitness_data is a list of length ngenerations (just nepisodes), where each value in the list is
+          the fitness value for the best network in that generation
+        - servo_data is a Numpy Array of shape (nservos, nsteps_per_generation, nnetworks, ngenerations).
+          Every generation's networks are sorted by most fit to least fit before combining with the rest of the data.
+
         """
         if self.type == ExperimentType.RANDOM:
+            # Compile data for random experiment type
             eparrays = []
             for ep in self.episodes:
                 eparrays.append(ep.data)
             res = np.hstack(eparrays)
+            assert res.shape == (self.nservos, self.nsteps_per_episode * self.nepisodes)
             return res
+        elif self.type == ExperimentType.GENETIC:
+            # Compile data for genetic experiment type
+            ## Get the Fitnesses
+            fitnesses = [generation.highest_fitness for generation in self.episodes]
+            ## Get the servo data
+            genarrays = []
+            for generation in self.episodes:
+                generation_data = generation.data_sorted_by_fitness
+                genarrays.append(generation_data)
+            res = np.array(genarrays).reshape((self.nservos, self.nsteps_per_episode, self.nnetworks, self.nepisodes))
+            assert res.shape == (self.nservos, self.nsteps_per_episode, self.nnetworks, self.nepisodes)
+            return fitnesses, res
         else:
             return None
 
@@ -213,14 +302,30 @@ def plot_random(experiment):
     plt.title("Random Experiment's Servo Values Across Episodes")
     plt.xlabel("Step")
     plt.ylabel("Degrees")
-    plt.plot(experiment.data)
+    data = experiment.data
+    for servo in range(data.shape[0]):
+        plt.plot(data[servo, :])
     plt.show()
 
 def plot_genetic(experiment):
     """
     Plots the given experiment, which is assumed to be of type==ExperimentType.GENETIC
     """
-    pass
+    fitnesses, servo_data = experiment.data
+    plt.title("Each Generation's Best Fitness Value")
+    plt.xlabel("Generation")
+    plt.ylabel("Fitness Value")
+    plt.plot(fitnesses)
+    plt.show()
+
+    plt.title("Servo Values from Best Network in Each Generation")
+    plt.xlabel("Step (every {} steps is a generation)".format(experiment.nsteps_per_episode))
+    plt.ylabel("Degrees")
+    for servo in range(servo_data.shape[0]):
+        # Since the data is sorted, we can assume the 0 index is the most fit network
+        data = servo_data[servo, :, 0, :].reshape((experiment.nsteps_per_episode * experiment.nepisodes, ))
+        plt.plot(data)
+    plt.show()
 
 if __name__ == "__main__":
     if len(sys.argv) != 2 and not os.path.exists("results.txt"):
