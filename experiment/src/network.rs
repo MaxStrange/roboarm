@@ -6,6 +6,8 @@ extern crate rand;
 use nalgebra as na;
 use rand::Rng;
 use rand::distributions::Normal;
+use std::io::Read;
+use std::io::Write as w_;
 use std::fmt::Write;
 
 pub fn linear(x: f64) -> f64 {
@@ -61,6 +63,29 @@ impl MultilayerPerceptron {
         MultilayerPerceptron {
             layers: Vec::new(),
         }
+    }
+
+    /// Attempts to save this network's weights to `path`.
+    pub fn save_weights(&self, path: &String) -> std::io::Result<()> {
+        let mut f = std::fs::File::create(path)?;
+        for layer in self.layers.iter() {
+            writeln!(f, "{}", layer.serialize_weights());
+        }
+        Ok(())
+    }
+
+    /// Loads the weights into a network from the given file path, which should contain weights as saved by save_weights().
+    pub fn load_weights(&mut self, path: &String) -> std::io::Result<()> {
+        let mut f = std::fs::File::open(path)?;
+        let mut contents = String::new();
+        f.read_to_string(&mut contents)?;
+        for (i, line) in contents.split('\n').enumerate() {
+            match self.layers[i].deserialize_weights(&line.trim().to_string()) {
+                Ok(_) => (),
+                Err(e) => return Err(std::io::Error::new(std::io::ErrorKind::Other, e)),
+            }
+        }
+        Ok(())
     }
 
     pub fn add_layer(&mut self, layer: Layer) -> &mut Self {
@@ -174,6 +199,32 @@ impl Layer {
             weights: na::DMatrix::<f64>::identity(10, 10),
             output: false,
         }
+    }
+
+    /// Serializes the Layer's weights into a string representation: a single line of numbers.
+    pub fn serialize_weights(&self) -> String {
+        let mut s = String::new();
+        for w in self.weights.iter() {
+            s.push_str(&w.to_string());
+            s.push(' ');
+        }
+        s
+    }
+
+    /// Deserializes the given string of weights and fills this Layer's weights with the results.
+    pub fn deserialize_weights(&mut self, line: &String) -> Result<(), String> {
+        for (i, number) in line.trim().split(' ').enumerate() {
+            let n = match number.parse::<f64>() {
+                Ok(res) => res,
+                Err(_) => {
+                    let mut msg = String::new();
+                    write!(msg, "Could not parse {} into an f64 while trying to deserialize some weights for a Layer.", number);
+                    return Err(msg);
+                },
+            };
+            self.weights[i] = n;
+        }
+        Ok(())
     }
 
     /// Makes the layer length `nnodes`
