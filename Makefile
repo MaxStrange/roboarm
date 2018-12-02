@@ -4,6 +4,12 @@ all:
 	$(MAKE) -C teleop
 	$(MAKE) -C experiment
 
+.PHONY: release
+release:
+	$(MAKE) release -C roboarm
+	$(MAKE) release -C teleop
+	$(MAKE) release -C experiment
+
 .PHONY: roboarm
 roboarm:
 	$(MAKE) -C roboarm
