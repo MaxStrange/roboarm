@@ -331,7 +331,7 @@ if __name__ == "__main__":
     if len(sys.argv) != 2 and not os.path.exists("results.txt"):
         print("Need a path to results.txt file.")
         exit(1)
-    elif not os.path.exists(sys.argv[1]):
+    elif len(sys.argv) == 2 and not os.path.exists(sys.argv[1]):
         print("{} does not exist.".format(sys.argv[1]))
         exit(1)
 
