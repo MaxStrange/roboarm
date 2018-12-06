@@ -53,6 +53,8 @@ pub struct Layer {
     activation_function: ActivationFunction,
     /// Matrix of weights going *out of* this Layer. Matrix is N_thislayer x N_nextlayer.
     weights: na::Matrix<f64, na::Dynamic, na::Dynamic, na::MatrixVec<f64, na::Dynamic, na::Dynamic>>,
+    /// The number of weights going out of this Layer.
+    pub nweights: usize,
     /// Are we the output layer?
     output: bool,
 }
@@ -114,7 +116,7 @@ impl MultilayerPerceptron {
     pub fn nweights(&self) -> usize {
         let mut total: usize = 0;
         for layer in self.layers.iter() {
-            total += layer.weights.ncols() * layer.weights.nrows();
+            total += layer.nweights;
         }
         total
     }
@@ -198,6 +200,7 @@ impl Layer {
             activation_function: |_| 0.0,
             weights: na::DMatrix::<f64>::identity(10, 10),
             output: false,
+            nweights: 100,
         }
     }
 
@@ -242,6 +245,7 @@ impl Layer {
     /// Adjusts the weights of this layer to the appropriate dimensions, given the next layer's size.
     pub fn connect(&mut self, next_layer_nnodes: usize) -> &mut Self {
         self.weights = na::DMatrix::<f64>::identity(self.nnodes, next_layer_nnodes);
+        self.nweights = self.nnodes * next_layer_nnodes;
         self
     }
 
@@ -249,6 +253,7 @@ impl Layer {
     pub fn make_output(&mut self) -> &mut Self {
         self.output = true;
         self.weights = na::DMatrix::<f64>::identity(self.nnodes, self.nnodes);
+        self.nweights = 0;
         self
     }
 
@@ -270,6 +275,128 @@ impl Layer {
             activation_function: self.activation_function.clone(),
             weights: self.weights.clone(),
             output: self.output,
+            nweights: self.nweights,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use rand::prelude::*;
+    use std::fs;
+
+    /// Create a test network
+    fn build_network() -> MultilayerPerceptron {
+        let (low, high, mut rng) = (-10.0, 10.0, thread_rng());
+        MultilayerPerceptron::new()
+            .add_layer(
+                Layer::new()
+                    .length(3)
+                    .activation(linear)
+                    .connect(125)
+                    .initialize_weights(low, high, &mut rng)
+                    .finalize()
+            )
+            .add_layer(
+                Layer::new()
+                    .length(125)
+                    .activation(relu)
+                    .connect(75)
+                    .initialize_weights(low, high, &mut rng)
+                    .finalize()
+            )
+            .add_layer(
+                Layer::new()
+                    .length(75)
+                    .activation(relu)
+                    .connect(3)
+                    .initialize_weights(low, high, &mut rng)
+                    .finalize()
+            )
+            .add_layer(
+                Layer::new()
+                    .length(3)
+                    .activation(linear)
+                    .make_output()
+                    .initialize_weights(low, high, &mut rng)
+                    .finalize()
+            )
+            .finalize().unwrap()
+    }
+
+    /// Build an input vector suitable for the test network. The same value each time.
+    fn build_input() -> na::DVector<f64> {
+        let network = build_network();
+        let mut v = Vec::<f64>::new();
+        for i in 0..network.input_length() {
+            v.push(i as f64);
+        }
+        na::DVector::<f64>::from_vec(network.input_length(), v)
+    }
+
+    #[test]
+    fn test_make_more_than_one_mlp() {
+        let _net1 = build_network();
+        let _net2 = build_network();
+    }
+
+    #[test]
+    fn test_serde() {
+        //let net_before = build_network();
+        //let input = build_input();
+        //let forward_before = net_before.forward(&input);
+        //let path = "serde_test_weights.wghts";
+        //match net_before.save_weights(&path.to_string()) {
+        //    Ok(_) => (),
+        //    Err(msg) => {
+        //        panic!("Problem with saving weights: {}", msg);
+        //    },
+        //}
+
+        //let mut net_after = build_network();
+        //match net_after.load_weights(&path.to_string()) {
+        //    Ok(_) => (),
+        //    Err(msg) => {
+        //        panic!("Problem with loading weights: {}", msg);
+        //    },
+        //}
+        //let forward_after = net_after.forward(&input);
+
+        //fs::remove_file(path).expect("Could not remove the test weights file for some reason.");
+
+        //// Test that the forward pass produces the same values before and after serde
+        //assert_eq!(forward_before, forward_after);
+    }
+
+    #[test]
+    fn test_get_nweights() {
+        let (low, high, mut rng) = (-2.0, 2.0, thread_rng());
+        let xornet = MultilayerPerceptron::new()
+            .add_layer(
+                Layer::new().length(2).activation(linear).connect(4).initialize_weights(low, high, &mut rng).finalize()
+            )
+            .add_layer(
+                Layer::new().length(4).activation(relu).connect(4).initialize_weights(low, high, &mut rng).finalize()
+            )
+            .add_layer(
+                Layer::new().length(4).activation(relu).connect(2).initialize_weights(low, high, &mut rng).finalize()
+            )
+            .add_layer(
+                Layer::new().length(2).activation(linear).make_output().initialize_weights(low, high, &mut rng).finalize()
+            )
+            .finalize().unwrap();
+
+        let nweights = xornet.nweights();
+        assert_eq!(nweights, (2 * 4) + (4 * 4) + (4 * 2));
+    }
+
+    #[test]
+    fn test_mutate() {
+    }
+
+    #[test]
+    fn test_forward_pass() {
     }
 }

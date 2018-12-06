@@ -45,8 +45,13 @@ run-teleop:
 run:
 	$(MAKE) -C experiment run
 
+.PHONY: test
+test:
+	$(MAKE) -C experiment test
+
 .PHONY: ci
 ci: roboarm teleop experiment
+	$(MAKE) -C experiment test
 
 .PHONY: date
 date:
