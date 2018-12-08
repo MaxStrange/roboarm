@@ -1,6 +1,6 @@
 use rand;
 use super::network::{Layer, MultilayerPerceptron, relu, linear};
-use super::expconfig::ExperimentConfig;
+use super::expconfig::{ExperimentConfig, Mode};
 use std::cmp::Ordering::Equal;
 
 /// A struct to maintain state across the whole experiment
@@ -9,7 +9,8 @@ pub struct ExperimentState {
     generation: usize,
     /// The networks in the current generation
     pub networks: Vec<MultilayerPerceptron>,
-    /// How fit each network is. The ith evaluation is the evaluations for the ith network.
+    /// How fit each network is. The ith evaluation is the evaluation for the ith network.
+    /// This vector will be cleared of values each time we move to a new generation.
     evaluations: Vec<f64>,
 }
 
@@ -135,5 +136,38 @@ impl ExperimentState {
             Err(msg) => { println!("{}", msg); panic!(); },
             Ok(n) => n,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    extern crate nalgebra;
+
+    use super::*;
+
+    use nalgebra as na;
+    use rand::prelude::*;
+    use std::fs;
+
+    fn create_experiment_config(gensize: u64, nkeep: u64) -> ExperimentConfig {
+        ExperimentConfig {
+            nsteps_per_episode: 30,
+            nepisodes: 2,
+            mode: Mode::Genetic,
+            comstr: "simulation".to_string(),
+            generation_size: gensize,
+            low: -1.0,
+            high: 1.0,
+            nkeep: nkeep,
+            percent_mutate: 2.0,
+            mutation_stdev: 0.25,
+            target: na::Translation3::new(0.0, 0.0, 0.0),
+            urdfpath: "".to_string(),
+        }
+    }
+
+    #[test]
+    fn test_next_generation_is_based_on_best_networks() {
+        // TODO: how?
     }
 }

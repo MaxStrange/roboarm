@@ -1,11 +1,11 @@
 mode: genetic
 nsteps_per_episode: 30
-nepisodes: 100
+nepisodes: 1000
 com: simulate
 generation_size: 100
-randomized_weights_low: -10.0
-randomized_weights_high: 10.0
-mutation_stdev: 0.2
+randomized_weights_low: -1.0
+randomized_weights_high: 1.0
+mutation_stdev: 0.05
 percent_mutate: 2.0
 target_x: 0.25
 target_y: 0.25
