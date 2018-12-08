@@ -36,6 +36,8 @@ pub fn relu(x: f64) -> f64 {
 pub struct MultilayerPerceptron {
     /// The layers present in this network in order from input to output.
     layers: Vec<Layer>,
+    /// The number of layers in this network.
+    pub nlayers: usize,
 }
 
 pub type ActivationFunction = fn(f64) -> f64;
@@ -64,6 +66,7 @@ impl MultilayerPerceptron {
     pub fn new() -> Self {
         MultilayerPerceptron {
             layers: Vec::new(),
+            nlayers: 0,
         }
     }
 
@@ -82,6 +85,12 @@ impl MultilayerPerceptron {
         let mut contents = String::new();
         f.read_to_string(&mut contents)?;
         for (i, line) in contents.split('\n').enumerate() {
+            // Ignore any lines after we have enough
+            if i >= self.layers.len() {
+                break;
+            }
+
+            // Parse a line into weights for a layer
             match self.layers[i].deserialize_weights(&line.trim().to_string()) {
                 Ok(_) => (),
                 Err(e) => return Err(std::io::Error::new(std::io::ErrorKind::Other, e)),
@@ -109,6 +118,7 @@ impl MultilayerPerceptron {
         }
         Ok(MultilayerPerceptron {
             layers: self.layers.clone(),
+            nlayers: self.layers.len(),
         })
     }
 
@@ -207,7 +217,8 @@ impl Layer {
     /// Serializes the Layer's weights into a string representation: a single line of numbers.
     pub fn serialize_weights(&self) -> String {
         let mut s = String::new();
-        for w in self.weights.iter() {
+        for i in 0..self.nweights {
+            let w = self.weights[i];
             s.push_str(&w.to_string());
             s.push(' ');
         }
@@ -217,6 +228,13 @@ impl Layer {
     /// Deserializes the given string of weights and fills this Layer's weights with the results.
     pub fn deserialize_weights(&mut self, line: &String) -> Result<(), String> {
         for (i, number) in line.trim().split(' ').enumerate() {
+            // If this is the last layer, we don't really have any weights
+            if self.output {
+                self.weights = na::DMatrix::<f64>::identity(self.nnodes, self.nnodes);
+                break;
+            }
+
+            // Otherwise parse the given number into a weight
             let n = match number.parse::<f64>() {
                 Ok(res) => res,
                 Err(_) => {
@@ -258,12 +276,12 @@ impl Layer {
     }
 
     /// Initializes the weights via random uniform distribution to values in the interval [low, high].
+    ///
+    /// If this layer is the output layer, this does nothing.
     pub fn initialize_weights(&mut self, low: f64, high: f64, rng: &mut rand::ThreadRng) -> &mut Self {
-        for c in 0..self.weights.ncols() {
-            for r in 0..self.weights.nrows() {
-                let val = rng.gen_range(low, high + 1E-9);
-                let nrows = self.weights.nrows();
-                self.weights[c * nrows + r] = val;
+        if !self.output {
+            for i in 0..self.nweights {
+                self.weights[i] = rng.gen_range(low, high + 1E-9);
             }
         }
         self
@@ -326,52 +344,11 @@ mod tests {
             .finalize().unwrap()
     }
 
-    /// Build an input vector suitable for the test network. The same value each time.
-    fn build_input() -> na::DVector<f64> {
-        let network = build_network();
-        let mut v = Vec::<f64>::new();
-        for i in 0..network.input_length() {
-            v.push(i as f64);
-        }
-        na::DVector::<f64>::from_vec(network.input_length(), v)
-    }
-
-    #[test]
-    fn test_make_more_than_one_mlp() {
-        let _net1 = build_network();
-        let _net2 = build_network();
-    }
-
-    #[test]
-    fn test_serde() {
-        //let net_before = build_network();
-        //let input = build_input();
-        //let forward_before = net_before.forward(&input);
-        //let path = "serde_test_weights.wghts";
-        //match net_before.save_weights(&path.to_string()) {
-        //    Ok(_) => (),
-        //    Err(msg) => {
-        //        panic!("Problem with saving weights: {}", msg);
-        //    },
-        //}
-
-        //let mut net_after = build_network();
-        //match net_after.load_weights(&path.to_string()) {
-        //    Ok(_) => (),
-        //    Err(msg) => {
-        //        panic!("Problem with loading weights: {}", msg);
-        //    },
-        //}
-        //let forward_after = net_after.forward(&input);
-
-        //fs::remove_file(path).expect("Could not remove the test weights file for some reason.");
-
-        //// Test that the forward pass produces the same values before and after serde
-        //assert_eq!(forward_before, forward_after);
-    }
-
-    #[test]
-    fn test_get_nweights() {
+    /// Build a small network for testing.
+    ///
+    /// This network is suitable for debugging manually, but the larger network should really be used for
+    /// most tests, since it is closer to what would actually be used.
+    fn build_small_network() -> MultilayerPerceptron {
         let (low, high, mut rng) = (-2.0, 2.0, thread_rng());
         let xornet = MultilayerPerceptron::new()
             .add_layer(
@@ -388,6 +365,74 @@ mod tests {
             )
             .finalize().unwrap();
 
+        xornet
+    }
+
+    /// Build an input vector suitable for the test network. The same value each time.
+    fn build_input(network: &MultilayerPerceptron) -> na::DVector<f64> {
+        let mut v = Vec::<f64>::new();
+        for i in 0..network.input_length() {
+            v.push(i as f64);
+        }
+        na::DVector::<f64>::from_vec(network.input_length(), v)
+    }
+
+    #[test]
+    fn test_make_more_than_one_mlp() {
+        let _net1 = build_network();
+        let _net2 = build_network();
+    }
+
+    /// Ugh
+    fn approx_equal(a: f64, b: f64, decimal_places: u8) -> bool {
+        let factor = 10.0f64.powi(decimal_places as i32);
+        let a = (a * factor).trunc();
+        let b = (b * factor).trunc();
+        a == b
+    }
+
+    #[test]
+    fn test_serde() {
+        let net_before = build_small_network();
+        let input = build_input(&net_before);
+        let forward_before = net_before.forward(&input);
+        let path = "serde_test_weights.wghts";
+        match net_before.save_weights(&path.to_string()) {
+            Ok(_) => (),
+            Err(msg) => {
+                panic!("Problem with saving weights: {}", msg);
+            },
+        }
+
+        let mut net_after = build_small_network();
+        match net_after.load_weights(&path.to_string()) {
+            Ok(_) => (),
+            Err(msg) => {
+                panic!("Problem with loading weights: {}", msg);
+            },
+        }
+        let forward_after = net_after.forward(&input);
+
+        fs::remove_file(path).expect("Could not remove the test weights file for some reason.");
+
+        // Test that the number of weights is the same before and after
+        assert_eq!(net_before.nlayers, net_after.nlayers);
+
+        // Test that each weight is about the same as it was before
+        let ndecimal_places = 3;
+        for (layer_before, layer_after) in net_before.layers.iter().zip(net_after.layers.iter()) {
+            for (w_before, w_after) in layer_before.weights.iter().zip(layer_after.weights.iter()) {
+                assert!(approx_equal(*w_before, *w_after, ndecimal_places), "{} and {} are not equal within {} decimal places", w_before, w_after, ndecimal_places);
+            }
+        }
+
+        // Test that the forward pass produces the same values before and after serde
+        assert_eq!(forward_before, forward_after);
+    }
+
+    #[test]
+    fn test_get_nweights() {
+        let xornet = build_small_network();
         let nweights = xornet.nweights();
         assert_eq!(nweights, (2 * 4) + (4 * 4) + (4 * 2));
     }
