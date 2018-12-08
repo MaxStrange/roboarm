@@ -22,6 +22,10 @@ pub fn relu(x: f64) -> f64 {
     }
 }
 
+pub fn tanh(x: f64) -> f64 {
+    x.tanh()
+}
+
 #[derive(Clone)]
 /// MLP Neural Network
 ///
@@ -443,5 +447,36 @@ mod tests {
 
     #[test]
     fn test_forward_pass() {
+        // Test small net with known weights to see if the outputs are expected for given inputs
+        let (low, high, mut rng) = (-2.0, 2.0, thread_rng());
+        let mut net = MultilayerPerceptron::new()
+            .add_layer(
+                Layer::new().length(2).activation(linear).connect(2).initialize_weights(low, high, &mut rng).finalize()
+            )
+            .add_layer(
+                Layer::new().length(2).activation(tanh).connect(1).initialize_weights(low, high, &mut rng).finalize()
+            )
+            .add_layer(
+                Layer::new().length(1).activation(linear).make_output().initialize_weights(low, high, &mut rng).finalize()
+            )
+            .finalize().unwrap();
+
+        let path = "temp.weights".to_string();
+        let mut f = fs::File::create(path.clone()).unwrap();
+        writeln!(f, "0.6 1.1 0.6 1.1");
+        writeln!(f, "-2.0 1.1");
+        net.load_weights(&path).unwrap();
+        fs::remove_file(path).expect("Could not remove the temp weights file for some reason.");
+
+        let zerozero = net.forward(&na::DVector::<f64>::from_vec(2, vec![0.0, 0.0]))[0];
+        let zeroone  = net.forward(&na::DVector::<f64>::from_vec(2, vec![0.0, 1.0]))[0];
+        let onezero  = net.forward(&na::DVector::<f64>::from_vec(2, vec![1.0, 0.0]))[0];
+        let oneone   = net.forward(&na::DVector::<f64>::from_vec(2, vec![1.0, 1.0]))[0];
+
+        let decplaces = 4;
+        assert!(approx_equal(zerozero,  0.00000, decplaces));
+        assert!(approx_equal(zeroone,  -0.72045, decplaces));
+        assert!(approx_equal(onezero,  -0.48334, decplaces));
+        assert!(approx_equal(oneone,   -0.84187, decplaces));
     }
 }
