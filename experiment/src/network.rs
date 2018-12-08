@@ -442,10 +442,6 @@ mod tests {
     }
 
     #[test]
-    fn test_mutate() {
-    }
-
-    #[test]
     fn test_forward_pass() {
         // Test small net with known weights to see if the outputs are expected for given inputs
         let (low, high, mut rng) = (-2.0, 2.0, thread_rng());

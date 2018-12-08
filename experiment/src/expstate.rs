@@ -43,39 +43,7 @@ impl ExperimentState {
         self.networks = if self.generation == 0 {
             self.spawn_n_networks(gensize, experiment.low, experiment.high, rng)
         } else {
-            // sort the networks along with their indexes by how well they did
-            let mut idx_val_nets: Vec<(usize, (&f64, &MultilayerPerceptron))> =
-                (0..self.evaluations.len())
-                    .zip(
-                        self.evaluations
-                            .iter()
-                            .zip(&self.networks)
-                    )
-                    .collect();
-            idx_val_nets.sort_unstable_by(|a, b| (a.1).0.partial_cmp((b.1).0).unwrap_or(Equal));
-            idx_val_nets.reverse();
-
-            // Now keep only the top-performing nkeep nets from self.networks
-            let mut nets_to_keep = Vec::new();
-            for i in 0..nkeep {
-                let idx = idx_val_nets[i].0;
-                nets_to_keep.push(self.networks[idx].clone());
-            }
-
-            // Spawn the rest of the nets as random mutations of the others
-            let mut rest = Vec::new();
-            for i in 0..(gensize - nkeep) {
-                let mutant = nets_to_keep[i % nkeep].mutate(rng, experiment.percent_mutate / 100.0, experiment.mutation_stdev);
-                rest.push(mutant);
-            }
-
-            // Move the rest into nets_to_keep
-            for net in rest {
-                nets_to_keep.push(net);
-            }
-
-            assert!(nets_to_keep.len() == gensize);
-            nets_to_keep
+            self.spawn_from_networks(gensize, nkeep, rng, experiment.percent_mutate, experiment.mutation_stdev)
         };
         self.generation += 1;
         self.evaluations.clear();
@@ -88,6 +56,42 @@ impl ExperimentState {
             v.push(net);
         }
         v
+    }
+
+    fn spawn_from_networks(&self, gensize: usize, nkeep: usize, rng: &mut rand::ThreadRng, percent_mutate: f64, mutation_stdev: f64) -> Vec<MultilayerPerceptron> {
+        // sort the networks along with their indexes by how well they did
+        let mut idx_val_nets: Vec<(usize, (&f64, &MultilayerPerceptron))> =
+            (0..self.evaluations.len())
+                .zip(
+                    self.evaluations
+                        .iter()
+                        .zip(&self.networks)
+                )
+                .collect();
+        idx_val_nets.sort_unstable_by(|a, b| (a.1).0.partial_cmp((b.1).0).unwrap_or(Equal));
+        idx_val_nets.reverse();
+
+        // Now keep only the top-performing nkeep nets from self.networks
+        let mut nets_to_keep = Vec::new();
+        for i in 0..nkeep {
+            let idx = idx_val_nets[i].0;
+            nets_to_keep.push(self.networks[idx].clone());
+        }
+
+        // Spawn the rest of the nets as random mutations of the others
+        let mut rest = Vec::new();
+        for i in 0..(gensize - nkeep) {
+            let mutant = nets_to_keep[i % nkeep].mutate(rng, percent_mutate / 100.0, mutation_stdev);
+            rest.push(mutant);
+        }
+
+        // Move the rest into nets_to_keep
+        for net in rest {
+            nets_to_keep.push(net);
+        }
+
+        assert!(nets_to_keep.len() == gensize);
+        nets_to_keep
     }
 
     fn build_network(&self, low: f64, high: f64, rng: &mut rand::ThreadRng) -> MultilayerPerceptron {
