@@ -318,6 +318,13 @@ def plot_genetic(experiment):
     plt.plot(fitnesses)
     plt.show()
 
+    distances = [1.0 / f for f in fitnesses]
+    plt.title("Each Generation's Closest Network")
+    plt.xlabel("Generation")
+    plt.ylabel("Distance (meters)")
+    plt.plot(distances)
+    plt.show()
+
     plt.title("Servo Values from Best Network in Each Generation")
     plt.xlabel("Step (every {} steps is a generation)".format(experiment.nsteps_per_episode))
     plt.ylabel("Degrees")
