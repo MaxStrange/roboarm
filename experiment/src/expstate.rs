@@ -38,7 +38,7 @@ impl ExperimentState {
     /// If the current generation does contain networks,
     /// the top `nkeep` networks are kept and mutated, while the others are
     /// discarded.
-    pub fn create_next_generation<'a>(&mut self, experiment: &'a expconfig::ExperimentConfig, rng: &mut rand::ThreadRng) {
+    pub fn create_next_generation<'a>(&mut self, experiment: &'a expconfig::ExperimentConfig, rng: &mut rand::StdRng) {
         let gensize = experiment.generation_size as usize;
         let nkeep = experiment.nkeep as usize;
 
@@ -51,7 +51,7 @@ impl ExperimentState {
         self.evaluations.clear();
     }
 
-    fn spawn_n_networks(&self, n: usize, low: f64, high: f64, rng: &mut rand::ThreadRng) -> Vec<network::MultilayerPerceptron> {
+    fn spawn_n_networks(&self, n: usize, low: f64, high: f64, rng: &mut rand::StdRng) -> Vec<network::MultilayerPerceptron> {
         let mut v = Vec::<network::MultilayerPerceptron>::new();
         for _netidx in 0..n {
             let net = netconfig::build_network(low, high, rng);
@@ -76,7 +76,7 @@ impl ExperimentState {
         idx_val_nets
     }
 
-    fn spawn_from_networks(&self, gensize: usize, nkeep: usize, rng: &mut rand::ThreadRng, percent_mutate: f64, mutation_stdev: f64) -> Vec<network::MultilayerPerceptron> {
+    fn spawn_from_networks(&self, gensize: usize, nkeep: usize, rng: &mut rand::StdRng, percent_mutate: f64, mutation_stdev: f64) -> Vec<network::MultilayerPerceptron> {
         // If generation is sized zero, we don't have to do anything. Note that this would be
         // an atypical use case.
         if gensize == 0 {
@@ -162,6 +162,7 @@ mod tests {
             mutation_stdev: 0.25,
             target: na::Translation3::new(0.0, 0.0, 0.0),
             urdfpath: "".to_string(),
+            seed: 1234,
         }
     }
 
@@ -172,7 +173,7 @@ mod tests {
         let mut config = create_experiment_config(gensize, nkeep);
         config.percent_mutate = 0.0;
         let mut state = ExperimentState::new();
-        let mut rng = thread_rng();
+        let mut rng: StdRng = SeedableRng::seed_from_u64(23);
 
         // Make a generation of networks
         state.create_next_generation(&config, &mut rng);

@@ -114,7 +114,7 @@ fn main() {
 
 fn run_experiment<'a>(experiment: &'a ExperimentConfig, arm: &mut k::Manipulator<f64>) -> ExperimentResults<'a> {
     // Create the random number generator
-    let mut rng = thread_rng();
+    let mut rng: StdRng = SeedableRng::seed_from_u64(experiment.seed);
 
     // Create the results to record to
     let mut results = ExperimentResults::new(&experiment);
@@ -138,7 +138,7 @@ fn run_experiment<'a>(experiment: &'a ExperimentConfig, arm: &mut k::Manipulator
     results
 }
 
-fn run_simulation<'a>(experiment: &'a ExperimentConfig, results: &mut ExperimentResults, rng: &mut rand::ThreadRng, state: &mut ExperimentState, arm: &mut k::Manipulator<f64>) {
+fn run_simulation<'a>(experiment: &'a ExperimentConfig, results: &mut ExperimentResults, rng: &mut rand::StdRng, state: &mut ExperimentState, arm: &mut k::Manipulator<f64>) {
     println!("Running simulation");
 
     // Create a buffer to put the commands (the run_*_episode functions need a script to write to)
@@ -149,7 +149,7 @@ fn run_simulation<'a>(experiment: &'a ExperimentConfig, results: &mut Experiment
     };
 }
 
-fn run_episode<'a>(episode: u64, experiment: &'a ExperimentConfig, results: &mut ExperimentResults, rng: &mut rand::ThreadRng, state: &mut ExperimentState, arm: &mut k::Manipulator<f64>) {
+fn run_episode<'a>(episode: u64, experiment: &'a ExperimentConfig, results: &mut ExperimentResults, rng: &mut rand::StdRng, state: &mut ExperimentState, arm: &mut k::Manipulator<f64>) {
     // Create the script for this episode
     let mut scriptname = String::new();
     write!(scriptname, "tmpscript_episode_{}.txt", episode);
@@ -215,7 +215,7 @@ fn run_episode<'a>(episode: u64, experiment: &'a ExperimentConfig, results: &mut
     };
 }
 
-fn run_random_episode<'a>(experiment: &'a ExperimentConfig, rng: &mut rand::ThreadRng, results: &mut ExperimentResults, f: &mut dyn std::io::Write) {
+fn run_random_episode<'a>(experiment: &'a ExperimentConfig, rng: &mut rand::StdRng, results: &mut ExperimentResults, f: &mut dyn std::io::Write) {
     // Starting angles
     let mut base: f64 = ANGLE_START_BASE;
     let mut shoulder: f64 = ANGLE_START_SHOULDER;
@@ -250,14 +250,15 @@ fn run_random_episode<'a>(experiment: &'a ExperimentConfig, rng: &mut rand::Thre
     }
 }
 
-fn run_genetic_episode<'a>(experiment: &'a ExperimentConfig, rng: &mut rand::ThreadRng, results: &mut ExperimentResults, f: &mut dyn std::io::Write, state: &mut ExperimentState, arm: &mut k::Manipulator<f64>) {
+fn run_genetic_episode<'a>(experiment: &'a ExperimentConfig, rng: &mut rand::StdRng, results: &mut ExperimentResults, f: &mut dyn std::io::Write, state: &mut ExperimentState, arm: &mut k::Manipulator<f64>) {
     // Crate a generation
     state.create_next_generation(experiment, rng);
 
-    // Go to random start position
-    let base_start: f64 = num::clamp(ANGLE_START_BASE as f64 + rng.gen_range(-30.0, 30.0), ANGLE_LOWER_LIMIT_BASE as f64, ANGLE_UPPER_LIMIT_BASE as f64);
-    let shoulder_start: f64 = num::clamp(ANGLE_START_SHOULDER as f64 + rng.gen_range(-30.0, 30.0), ANGLE_LOWER_LIMIT_SHOULDER as f64, ANGLE_UPPER_LIMIT_SHOULDER as f64);
-    let elbow_start: f64 = num::clamp(ANGLE_START_ELBOW as f64 + rng.gen_range(-30.0, 30.0), ANGLE_LOWER_LIMIT_ELBOW as f64, ANGLE_UPPER_LIMIT_ELBOW as f64);
+    // Go to random start position - but should be the same start position every time
+    let mut rngcopy: StdRng = rand::SeedableRng::seed_from_u64(experiment.seed);
+    let base_start: f64 = num::clamp(ANGLE_START_BASE as f64 + rngcopy.gen_range(-30.0, 30.0), ANGLE_LOWER_LIMIT_BASE as f64, ANGLE_UPPER_LIMIT_BASE as f64);
+    let shoulder_start: f64 = num::clamp(ANGLE_START_SHOULDER as f64 + rngcopy.gen_range(-30.0, 30.0), ANGLE_LOWER_LIMIT_SHOULDER as f64, ANGLE_UPPER_LIMIT_SHOULDER as f64);
+    let elbow_start: f64 = num::clamp(ANGLE_START_ELBOW as f64 + rngcopy.gen_range(-30.0, 30.0), ANGLE_LOWER_LIMIT_ELBOW as f64, ANGLE_UPPER_LIMIT_ELBOW as f64);
     writeln!(f, "servo {} {}", BASENUM, base_start);
     writeln!(f, "servo {} {}", SHOULDERNUM, shoulder_start);
     writeln!(f, "servo {} {}", ELBOWNUM, elbow_start);

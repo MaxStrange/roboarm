@@ -6,7 +6,7 @@ use rand;
 /// Builds the network for the experiment.
 ///
 /// Panics if the network can't be finalized for some reason.
-pub fn build_network(low: f64, high: f64, rng: &mut rand::ThreadRng) -> MultilayerPerceptron {
+pub fn build_network(low: f64, high: f64, rng: &mut rand::StdRng) -> MultilayerPerceptron {
     let net = {
         MultilayerPerceptron::new()
             .add_layer(

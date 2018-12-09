@@ -47,7 +47,10 @@ impl<'a> ExperimentResults<'a> {
             Ok(file) => file,
         };
 
-        write!(f, "{}", &self);
+        match write!(f, "{}", &self) {
+            Err(e) => println!("Could not save results to file: {:?}", e),
+            _ => (),
+        }
     }
 }
 

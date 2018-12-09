@@ -146,7 +146,7 @@ impl MultilayerPerceptron {
     /// mu=current_weight, sigma=`stdev`.
     ///
     /// Note that `percent_mutate` is asserted to be less than or equal to 1.0.
-    pub fn mutate(&self, rng: &mut rand::ThreadRng, percent_mutate: f64, stdev: f64) -> Self {
+    pub fn mutate(&self, rng: &mut rand::StdRng, percent_mutate: f64, stdev: f64) -> Self {
         // Assert that we don't try to mutate more weights than we have
         assert!(percent_mutate <= 1.0);
 
@@ -287,7 +287,7 @@ impl Layer {
     /// Initializes the weights via random uniform distribution to values in the interval [low, high].
     ///
     /// If this layer is the output layer, this does nothing.
-    pub fn initialize_weights(&mut self, low: f64, high: f64, rng: &mut rand::ThreadRng) -> &mut Self {
+    pub fn initialize_weights(&mut self, low: f64, high: f64, rng: &mut rand::StdRng) -> &mut Self {
         if !self.output {
             for i in 0..self.nweights {
                 self.weights[i] = rng.gen_range(low, high + 1E-9);
@@ -316,7 +316,9 @@ mod tests {
 
     /// Create a test network
     fn build_network() -> MultilayerPerceptron {
-        let (low, high, mut rng) = (-10.0, 10.0, thread_rng());
+        let mut seedrng = thread_rng();
+        let randseed = seedrng.next_u64();
+        let (low, high, mut rng) = (-10.0, 10.0, rand::SeedableRng::seed_from_u64(randseed));
         MultilayerPerceptron::new()
             .add_layer(
                 Layer::new()
@@ -358,7 +360,9 @@ mod tests {
     /// This network is suitable for debugging manually, but the larger network should really be used for
     /// most tests, since it is closer to what would actually be used.
     fn build_small_network() -> MultilayerPerceptron {
-        let (low, high, mut rng) = (-2.0, 2.0, thread_rng());
+        let mut seedrng = thread_rng();
+        let randseed = seedrng.next_u64();
+        let (low, high, mut rng) = (-2.0, 2.0, rand::SeedableRng::seed_from_u64(randseed));
         let xornet = MultilayerPerceptron::new()
             .add_layer(
                 Layer::new().length(2).activation(linear).connect(4).initialize_weights(low, high, &mut rng).finalize()
@@ -449,7 +453,9 @@ mod tests {
     #[test]
     fn test_forward_pass() {
         // Test small net with known weights to see if the outputs are expected for given inputs
-        let (low, high, mut rng) = (-2.0, 2.0, thread_rng());
+        let mut seedrng = thread_rng();
+        let randseed = seedrng.next_u64();
+        let (low, high, mut rng) = (-2.0, 2.0, rand::SeedableRng::seed_from_u64(randseed));
         let mut net = MultilayerPerceptron::new()
             .add_layer(
                 Layer::new().length(2).activation(linear).connect(2).initialize_weights(low, high, &mut rng).finalize()

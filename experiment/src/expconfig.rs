@@ -1,4 +1,5 @@
 use nalgebra as na;
+use rand::prelude::*;
 use std::collections::hash_map::{self, HashMap};
 use std::fmt::{self, Write};
 use std::path::Path;
@@ -31,6 +32,8 @@ pub struct ExperimentConfig {
     pub target: na::Translation3<f64>,
     /// Path to the Arm URDF file
     pub urdfpath: String,
+    /// Seed for the random number generator - the file may specify "none", in which case a random number is used to seed the RNG.
+    pub seed: u64,
 }
 
 #[derive(Debug)]
@@ -66,6 +69,21 @@ impl ExperimentConfig {
             Err(_) => return Err("Could not convert nepisodes to integer.".to_string()),
         };
 
+        let seedstr = match setting_strings.entry("seed".to_string()) {
+            hash_map::Entry::Occupied(o) => o,
+            hash_map::Entry::Vacant(_) => return Err("Missing 'seed' in config file.".to_string()),
+        }.get().clone();
+
+        let seed = if seedstr.to_ascii_lowercase() == "none" {
+            let mut rng = rand::thread_rng();
+            rng.next_u64()
+        } else {
+            match seedstr.parse::<u64>() {
+                Ok(x) => x,
+                Err(_) => return Err("Could not convert 'seed' to integer.".to_string()),
+            }
+        };
+
         let modestr = match setting_strings.entry("mode".to_string()) {
             hash_map::Entry::Occupied(o) => o,
             hash_map::Entry::Vacant(_) => return Err("Missing 'mode' in config file.".to_string()),
@@ -77,7 +95,7 @@ impl ExperimentConfig {
             "genetic" => Mode::Genetic,
             m => {
                 let mut errmsg = String::new();
-                writeln!(errmsg, "Mode must be 'random' or 'genetic' but is {}", m);
+                writeln!(errmsg, "Mode must be 'random' or 'genetic' but is {}", m).unwrap();
                 return Err(errmsg);
             },
         };
@@ -133,7 +151,7 @@ impl ExperimentConfig {
         // Check to make sure percent_mutate is within allowed bounds
         if percent_mutate < 0.0 || percent_mutate > 100.0 {
             let mut msg = String::new();
-            write!(msg, "'percent_mutate' must be in interval [0, 100], but is {}", percent_mutate);
+            write!(msg, "'percent_mutate' must be in interval [0, 100], but is {}", percent_mutate).unwrap();
             return Err(msg);
         };
 
@@ -166,6 +184,7 @@ impl ExperimentConfig {
             percent_mutate: percent_mutate,
             target: target,
             urdfpath: urdfpath,
+            seed: seed,
         })
     }
 }
@@ -174,13 +193,13 @@ fn parse_genetic_parameter<T: FromStr>(setting_strings: &mut HashMap<String, Str
     match setting_strings.entry(s.clone()) {
         hash_map::Entry::Vacant(_) => {
             let mut msg = String::new();
-            write!(msg, "Missing {} in config file", s);
+            write!(msg, "Missing {} in config file", s).unwrap();
             Err(msg)
         },
         hash_map::Entry::Occupied(o) => match o.get().clone().parse::<T>() {
             Err(_) => {
                 let mut msg = String::new();
-                write!(msg, "Could not convert {} into appropriate type", s);
+                write!(msg, "Could not convert {} into appropriate type", s).unwrap();
                 Err(msg)
             },
             Ok(val) => Ok(val),
@@ -207,6 +226,7 @@ impl fmt::Display for ExperimentConfig {
             _ => (),
         }
         writeln!(f, "Target for gripper: {:?}", self.target)?;
-        writeln!(f, "Path to URDF file: {}", self.urdfpath)
+        writeln!(f, "Path to URDF file: {}", self.urdfpath)?;
+        writeln!(f, "Seed: {}", self.seed)
     }
 }
