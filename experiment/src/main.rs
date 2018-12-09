@@ -311,7 +311,7 @@ fn run_genetic_episode<'a>(experiment: &'a ExperimentConfig, rng: &mut rand::Std
         let end = arm.end_transform().translation.vector;
         let (endx, endy, endz) = (end[0], end[1], end[2]);
         let (dx, dy, dz) = (endx - experiment.target.vector[0], endy - experiment.target.vector[1], endz - experiment.target.vector[2]);
-        let fitness = 1.0 / ((dx * dx + dy * dy + dz * dz).sqrt() + 1E-9);
+        let fitness = calculate_fitness(dx, dy, dz);
         writeln!(results, "Fitness for network {} {}", networkidx, fitness);
         evaluations.push(fitness);
 
@@ -327,4 +327,10 @@ fn run_genetic_episode<'a>(experiment: &'a ExperimentConfig, rng: &mut rand::Std
     for fitness in evaluations {
         state.add_fitness(fitness);
     }
+}
+
+/// Calculate a value that is higher the closer dx, dy, and dz are to zero without.
+fn calculate_fitness(dx: f64, dy: f64, dz: f64) -> f64 {
+    let distance = (dx * dx + dy * dy + dz * dz).sqrt();
+    1.0 / (distance + 1E-9)
 }
