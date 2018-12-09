@@ -147,7 +147,21 @@ mod tests {
 
     use nalgebra as na;
     use rand::prelude::*;
-    use std::fs;
+
+    fn approx_equal(a: f64, b: f64, decimal_places: u8) -> bool {
+        let factor = 10.0f64.powi(decimal_places as i32);
+        let a = (a * factor).trunc();
+        let b = (b * factor).trunc();
+        a == b
+    }
+
+    fn build_input(input_length: usize) -> na::DVector<f64> {
+        let mut v = Vec::<f64>::new();
+        for i in 0..input_length {
+            v.push(i as f64);
+        }
+        na::DVector::<f64>::from_vec(input_length, v)
+    }
 
     fn create_experiment_config(gensize: u64, nkeep: u64) -> ExperimentConfig {
         ExperimentConfig {
@@ -168,6 +182,36 @@ mod tests {
 
     #[test]
     fn test_next_generation_is_based_on_best_networks() {
-        // TODO: how?
+        let gensize = 100;
+        let nkeep = 1;
+        let mut config = create_experiment_config(gensize, nkeep);
+        config.percent_mutate = 0.0;
+        let mut state = ExperimentState::new();
+        let mut rng = thread_rng();
+
+        // Make a generation of networks
+        state.create_next_generation(&config, &mut rng);
+
+        // Assign a fitness to each network equal to its forward pass on the same input
+        let input = build_input(state.networks[0].input_length());
+        let mut fitnesses = Vec::new();
+        for net in state.networks.iter() {
+            let fitness = net.forward(&input).iter().sum();
+            fitnesses.push(fitness);
+        }
+        for fitness in fitnesses {
+            state.add_fitness(fitness);
+        }
+        let maxfitness = state.evaluations.iter().cloned().fold(-1.0/0.0, f64::max);
+
+        // Derive a second generation with no mutation and nkeep = 1
+        state.create_next_generation(&config, &mut rng);
+
+        // Assert that the output of each network is equal to the max of the fitnesses from the last generation
+        let ndecimals = 3;
+        for net in state.networks.iter() {
+            let output = net.forward(&input).iter().sum();
+            assert!(approx_equal(output, maxfitness, ndecimals));
+        }
     }
 }

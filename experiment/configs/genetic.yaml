@@ -11,4 +11,4 @@ target_x: 0.25
 target_y: 0.25
 target_z: 0.25
 nkeep_between_generations: 20
-arm_urdf: C:/Users/maxst/repos/roboarm/experiment/arm.urdf
+arm_urdf: /home/max/repos/roboarm/experiment/arm.urdf

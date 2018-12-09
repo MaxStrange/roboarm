@@ -2,4 +2,4 @@ mode: random
 nsteps_per_episode: 30
 nepisodes: 2
 com: COM3
-arm_urdf: C:/Users/maxst/repos/roboarm/experiment/arm.urdf
+arm_urdf: /home/max/repos/roboarm/experiment/arm.urdf
