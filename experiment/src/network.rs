@@ -10,10 +10,12 @@ use std::io::Read;
 use std::io::Write as w_;
 use std::fmt::Write;
 
+#[allow(unused)]
 pub fn linear(x: f64) -> f64 {
     x
 }
 
+#[allow(unused)]
 pub fn relu(x: f64) -> f64 {
     if x < 0.0 {
         0.0
@@ -22,6 +24,7 @@ pub fn relu(x: f64) -> f64 {
     }
 }
 
+#[allow(unused)]
 pub fn tanh(x: f64) -> f64 {
     x.tanh()
 }
@@ -83,6 +86,7 @@ impl MultilayerPerceptron {
         Ok(())
     }
 
+    #[allow(unused)]
     /// Loads the weights into a network from the given file path, which should contain weights as saved by save_weights().
     pub fn load_weights(&mut self, path: &String) -> std::io::Result<()> {
         let mut f = std::fs::File::open(path)?;
@@ -229,6 +233,7 @@ impl Layer {
         s
     }
 
+    #[allow(unused)]
     /// Deserializes the given string of weights and fills this Layer's weights with the results.
     pub fn deserialize_weights(&mut self, line: &String) -> Result<(), String> {
         for (i, number) in line.trim().split(' ').enumerate() {

@@ -1,6 +1,7 @@
 use rand;
-use super::network::{Layer, MultilayerPerceptron, relu, linear};
-use super::expconfig::{ExperimentConfig, Mode};
+use super::expconfig;
+use super::netconfig;
+use super::network;
 use std::cmp::Ordering::Equal;
 
 /// A struct to maintain state across the whole experiment
@@ -8,7 +9,7 @@ pub struct ExperimentState {
     /// Which generation we are on (starts from 0 as the first)
     generation: usize,
     /// The networks in the current generation
-    pub networks: Vec<MultilayerPerceptron>,
+    pub networks: Vec<network::MultilayerPerceptron>,
     /// How fit each network is. The ith evaluation is the evaluation for the ith network.
     /// This vector will be cleared of values each time we move to a new generation.
     evaluations: Vec<f64>,
@@ -37,7 +38,7 @@ impl ExperimentState {
     /// If the current generation does contain networks,
     /// the top `nkeep` networks are kept and mutated, while the others are
     /// discarded.
-    pub fn create_next_generation<'a>(&mut self, experiment: &'a ExperimentConfig, rng: &mut rand::ThreadRng) {
+    pub fn create_next_generation<'a>(&mut self, experiment: &'a expconfig::ExperimentConfig, rng: &mut rand::ThreadRng) {
         let gensize = experiment.generation_size as usize;
         let nkeep = experiment.nkeep as usize;
 
@@ -50,18 +51,18 @@ impl ExperimentState {
         self.evaluations.clear();
     }
 
-    fn spawn_n_networks(&self, n: usize, low: f64, high: f64, rng: &mut rand::ThreadRng) -> Vec<MultilayerPerceptron> {
-        let mut v = Vec::<MultilayerPerceptron>::new();
+    fn spawn_n_networks(&self, n: usize, low: f64, high: f64, rng: &mut rand::ThreadRng) -> Vec<network::MultilayerPerceptron> {
+        let mut v = Vec::<network::MultilayerPerceptron>::new();
         for _netidx in 0..n {
-            let net = self.build_network(low, high, rng);
+            let net = netconfig::build_network(low, high, rng);
             v.push(net);
         }
         v
     }
 
-    fn spawn_from_networks(&self, gensize: usize, nkeep: usize, rng: &mut rand::ThreadRng, percent_mutate: f64, mutation_stdev: f64) -> Vec<MultilayerPerceptron> {
-        // sort the networks along with their indexes by how well they did
-        let mut idx_val_nets: Vec<(usize, (&f64, &MultilayerPerceptron))> =
+    /// Create and return a list of the form (index, (fitness, network)).
+    fn sort_networks(&self) -> Vec<(usize, (&f64, &network::MultilayerPerceptron))> {
+        let mut idx_val_nets: Vec<(usize, (&f64, &network::MultilayerPerceptron))> =
             (0..self.evaluations.len())
                 .zip(
                     self.evaluations
@@ -71,6 +72,19 @@ impl ExperimentState {
                 .collect();
         idx_val_nets.sort_unstable_by(|a, b| (a.1).0.partial_cmp((b.1).0).unwrap_or(Equal));
         idx_val_nets.reverse();
+
+        idx_val_nets
+    }
+
+    fn spawn_from_networks(&self, gensize: usize, nkeep: usize, rng: &mut rand::ThreadRng, percent_mutate: f64, mutation_stdev: f64) -> Vec<network::MultilayerPerceptron> {
+        // If generation is sized zero, we don't have to do anything. Note that this would be
+        // an atypical use case.
+        if gensize == 0 {
+            return Vec::<network::MultilayerPerceptron>::new();
+        }
+
+        // sort the networks along with their indexes by how well they did
+        let idx_val_nets = self.sort_networks();
 
         // Now keep only the top-performing nkeep nets from self.networks
         let mut nets_to_keep = Vec::new();
@@ -95,47 +109,18 @@ impl ExperimentState {
         nets_to_keep
     }
 
-    fn build_network(&self, low: f64, high: f64, rng: &mut rand::ThreadRng) -> MultilayerPerceptron {
-        let net = {
-            MultilayerPerceptron::new()
-                .add_layer(
-                    Layer::new()
-                        .length(3)
-                        .activation(linear)
-                        .connect(125)
-                        .initialize_weights(low, high, rng)
-                        .finalize()
-                )
-                .add_layer(
-                    Layer::new()
-                        .length(125)
-                        .activation(relu)
-                        .connect(75)
-                        .initialize_weights(low, high, rng)
-                        .finalize()
-                )
-                .add_layer(
-                    Layer::new()
-                        .length(75)
-                        .activation(relu)
-                        .connect(3)
-                        .initialize_weights(low, high, rng)
-                        .finalize()
-                )
-                .add_layer(
-                    Layer::new()
-                        .length(3)
-                        .activation(linear)
-                        .make_output()
-                        .initialize_weights(low, high, rng)
-                        .finalize()
-                )
-                .finalize()
-        };
-        match net {
-            Err(msg) => { println!("{}", msg); panic!(); },
-            Ok(n) => n,
+    pub fn save_best_network(&self, path: &String) -> std::io::Result<()> {
+        // If there are no networks for some reason, ignore
+        if self.networks.len() == 0 {
+            return Ok(());
         }
+
+        // Figure out which network has the highest fitness
+        let idx_val_nets = self.sort_networks();
+        let best_network = (idx_val_nets[0].1).1;
+
+        // Save the network's weights
+        best_network.save_weights(path)
     }
 }
 
@@ -163,11 +148,11 @@ mod tests {
         na::DVector::<f64>::from_vec(input_length, v)
     }
 
-    fn create_experiment_config(gensize: u64, nkeep: u64) -> ExperimentConfig {
-        ExperimentConfig {
+    fn create_experiment_config(gensize: u64, nkeep: u64) -> expconfig::ExperimentConfig {
+        expconfig::ExperimentConfig {
             nsteps_per_episode: 30,
             nepisodes: 2,
-            mode: Mode::Genetic,
+            mode: expconfig::Mode::Genetic,
             comstr: "simulation".to_string(),
             generation_size: gensize,
             low: -1.0,

@@ -9,6 +9,7 @@
 //!
 //! The other mode (Genetic Algorithm mode), the robot arm will get its
 //! joint angles from a genetic algorithm.
+#![allow(unused_must_use)]
 
 /* Externs */
 extern crate config;
@@ -21,6 +22,7 @@ extern crate rand;
 mod expconfig;
 mod expresults;
 mod expstate;
+mod netconfig;
 mod network;
 
 /* Uses */
@@ -131,6 +133,7 @@ fn run_experiment<'a>(experiment: &'a ExperimentConfig, arm: &mut k::Manipulator
         }
     }
 
+    state.save_best_network(&"network_weights.wghts".to_string());
     results.finish();
     results
 }
