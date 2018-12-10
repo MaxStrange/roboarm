@@ -1,0 +1,6 @@
+mode: inference
+nsteps_per_episode: 30
+com: simulate
+weights: /home/max/repos/roboarm/network_weights.wghts
+arm_urdf: /home/max/repos/roboarm/experiment/arm.urdf
+seed: 1234

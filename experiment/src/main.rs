@@ -133,7 +133,14 @@ fn run_experiment<'a>(experiment: &'a ExperimentConfig, arm: &mut k::Manipulator
         }
     }
 
-    state.save_best_network(&"network_weights.wghts".to_string());
+    // Save the best network if mode is genetic
+    match experiment.mode {
+        Mode::Genetic => match state.save_best_network(&"network_weights.wghts".to_string()) {
+            Ok(_) => (),
+            Err(e) => panic!("Could not save network: {:?}", e),
+        },
+        Mode::Inference | Mode::Random => (),
+    }
     results.finish();
     results
 }
@@ -146,6 +153,7 @@ fn run_simulation<'a>(experiment: &'a ExperimentConfig, results: &mut Experiment
     match experiment.mode {
         Mode::Random => run_random_episode(experiment, rng, results, &mut f),
         Mode::Genetic => run_genetic_episode(experiment, rng, results, &mut f, state, arm),
+        Mode::Inference => run_inference_episode(experiment, rng, results, &mut f),
     };
 }
 
@@ -169,6 +177,7 @@ fn run_episode<'a>(episode: u64, experiment: &'a ExperimentConfig, results: &mut
     match experiment.mode {
         Mode::Random => run_random_episode(experiment, rng, results, &mut f),
         Mode::Genetic => run_genetic_episode(experiment, rng, results, &mut f, state, arm),
+        Mode::Inference => run_inference_episode(experiment, rng, results, &mut f),
     };
 
     // Make sure to go to home after every episode and spend a few cycles there.
@@ -213,6 +222,32 @@ fn run_episode<'a>(episode: u64, experiment: &'a ExperimentConfig, results: &mut
         Err(e) => writeln!(results, "Could not remove file {}. Error: {:?}", scriptname, e).unwrap(),
         Ok(_) => (),
     };
+}
+
+fn run_inference_episode<'a>(experiment: &'a ExperimentConfig, rng: &mut rand::StdRng, results: &mut ExperimentResults, f: &mut dyn std::io::Write) {
+    // Go to random start position - but should be the same start position every time
+    let mut rngcopy: StdRng = rand::SeedableRng::seed_from_u64(experiment.seed);
+    let mut base: f64 = num::clamp(ANGLE_START_BASE as f64 + rngcopy.gen_range(-30.0, 30.0), ANGLE_LOWER_LIMIT_BASE as f64, ANGLE_UPPER_LIMIT_BASE as f64);
+    let mut shoulder: f64 = num::clamp(ANGLE_START_SHOULDER as f64 + rngcopy.gen_range(-30.0, 30.0), ANGLE_LOWER_LIMIT_SHOULDER as f64, ANGLE_UPPER_LIMIT_SHOULDER as f64);
+    let mut elbow: f64 = num::clamp(ANGLE_START_ELBOW as f64 + rngcopy.gen_range(-30.0, 30.0), ANGLE_LOWER_LIMIT_ELBOW as f64, ANGLE_UPPER_LIMIT_ELBOW as f64);
+    writeln!(f, "servo {} {}", BASENUM, base);
+    writeln!(f, "servo {} {}", SHOULDERNUM, shoulder);
+    writeln!(f, "servo {} {}", ELBOWNUM, elbow);
+    writeln!(results, "servo {} {}", BASENUM, base);
+    writeln!(results, "servo {} {}", SHOULDERNUM, shoulder);
+    writeln!(results, "servo {} {}", ELBOWNUM, elbow);
+
+    // Create a network with the appropriate weights
+    let mut network: network::MultilayerPerceptron = netconfig::build_network(0.0, 1.0, rng);
+    match network.load_weights(&experiment.weights) {
+        Err(e) => panic!("Could not load the network weights from file {}: {:?}", experiment.weights, e),
+        Ok(_) => (),
+    }
+
+    // Write each step's actions to the results and script
+    for _ in 0..experiment.nsteps_per_episode {
+        run_step_using_network(&network, &mut base, &mut shoulder, &mut elbow, results, f);
+    }
 }
 
 fn run_random_episode<'a>(experiment: &'a ExperimentConfig, rng: &mut rand::StdRng, results: &mut ExperimentResults, f: &mut dyn std::io::Write) {
@@ -274,33 +309,7 @@ fn run_genetic_episode<'a>(experiment: &'a ExperimentConfig, rng: &mut rand::Std
         // For each step, get the values for each joint delta from a forward pass through the current network
         let (mut base, mut shoulder, mut elbow) = (base_start, shoulder_start, elbow_start);
         for _step in 0..experiment.nsteps_per_episode {
-            let input = na::DVector::<f64>::from_vec(network.input_length(), vec!(base, shoulder, elbow));
-            let mut output = network.forward(&input);
-
-            // Clamp output deltas to -15, +15
-            output[0] = num::clamp(output[0], -15.0, 15.0);
-            output[1] = num::clamp(output[1], -15.0, 15.0);
-            output[2] = num::clamp(output[2], -15.0, 15.0);
-
-            // Add the resulting values from the network to the current angles
-            base += output[0];
-            shoulder += output[1];
-            elbow += output[2];
-
-            // Clamp the joints to between min and max for each joint
-            base = num::clamp(base, ANGLE_LOWER_LIMIT_BASE, ANGLE_UPPER_LIMIT_BASE);
-            shoulder = num::clamp(shoulder, ANGLE_LOWER_LIMIT_SHOULDER, ANGLE_UPPER_LIMIT_SHOULDER);
-            elbow = num::clamp(elbow, ANGLE_LOWER_LIMIT_ELBOW, ANGLE_UPPER_LIMIT_ELBOW);
-
-            // Write to the file
-            writeln!(f, "servo {} {}", BASENUM, base);
-            writeln!(f, "servo {} {}", SHOULDERNUM, shoulder);
-            writeln!(f, "servo {} {}", ELBOWNUM, elbow);
-
-            // Also write to results
-            writeln!(results, "servo {} {}", BASENUM, base);
-            writeln!(results, "servo {} {}", SHOULDERNUM, shoulder);
-            writeln!(results, "servo {} {}", ELBOWNUM, elbow);
+            run_step_using_network(&network, &mut base, &mut shoulder, &mut elbow, results, f);
         }
 
         // Now figure out how fit this network is based on how close the arm ended up to the goal position
@@ -327,6 +336,36 @@ fn run_genetic_episode<'a>(experiment: &'a ExperimentConfig, rng: &mut rand::Std
     for fitness in evaluations {
         state.add_fitness(fitness);
     }
+}
+
+fn run_step_using_network(network: &network::MultilayerPerceptron, base: &mut f64, shoulder: &mut f64, elbow: &mut f64, results: &mut ExperimentResults, f: &mut dyn std::io::Write) {
+    let input = na::DVector::<f64>::from_vec(network.input_length(), vec!(*base, *shoulder, *elbow));
+    let mut output = network.forward(&input);
+
+    // Clamp output deltas to -15, +15
+    output[0] = num::clamp(output[0], -15.0, 15.0);
+    output[1] = num::clamp(output[1], -15.0, 15.0);
+    output[2] = num::clamp(output[2], -15.0, 15.0);
+
+    // Add the resulting values from the network to the current angles
+    *base += output[0];
+    *shoulder += output[1];
+    *elbow += output[2];
+
+    // Clamp the joints to between min and max for each joint
+    *base = num::clamp(*base, ANGLE_LOWER_LIMIT_BASE, ANGLE_UPPER_LIMIT_BASE);
+    *shoulder = num::clamp(*shoulder, ANGLE_LOWER_LIMIT_SHOULDER, ANGLE_UPPER_LIMIT_SHOULDER);
+    *elbow = num::clamp(*elbow, ANGLE_LOWER_LIMIT_ELBOW, ANGLE_UPPER_LIMIT_ELBOW);
+
+    // Write to the file
+    writeln!(f, "servo {} {}", BASENUM, base);
+    writeln!(f, "servo {} {}", SHOULDERNUM, shoulder);
+    writeln!(f, "servo {} {}", ELBOWNUM, elbow);
+
+    // Also write to results
+    writeln!(results, "servo {} {}", BASENUM, base);
+    writeln!(results, "servo {} {}", SHOULDERNUM, shoulder);
+    writeln!(results, "servo {} {}", ELBOWNUM, elbow);
 }
 
 /// Calculate a value that is higher the closer dx, dy, and dz are to zero without.

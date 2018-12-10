@@ -163,6 +163,7 @@ mod tests {
             target: na::Translation3::new(0.0, 0.0, 0.0),
             urdfpath: "".to_string(),
             seed: 1234,
+            weights: "".to_string(),
         }
     }
 

@@ -34,12 +34,19 @@ pub struct ExperimentConfig {
     pub urdfpath: String,
     /// Seed for the random number generator - the file may specify "none", in which case a random number is used to seed the RNG.
     pub seed: u64,
+    /// Path to the weights file (if doing inference).
+    pub weights: String,
 }
 
 #[derive(Debug)]
+/// The different modes the experiment can be run in.
 pub enum Mode {
+    /// Joint deltas are generated within limits randomly each step.
     Random,
+    /// Use a genetic algorithm to train a neural network to control an arm from a start point to an end point.
     Genetic,
+    /// Use an already-trained network to control an arm.
+    Inference,
 }
 
 impl ExperimentConfig {
@@ -49,31 +56,29 @@ impl ExperimentConfig {
         configuration.merge(config::File::with_name(configpath.to_str().unwrap())).unwrap();
         let mut setting_strings = configuration.try_into::<HashMap<String, String>>().unwrap();
 
-        let nsteps_per_episode_str = match setting_strings.entry("nsteps_per_episode".to_string()) {
-            hash_map::Entry::Occupied(o) => o,
-            hash_map::Entry::Vacant(_) => return Err("Missing 'nsteps_per_episode' in config file.".to_string()),
+        // Parse out the mode
+        let modestr = parse_parameter::<String>(&mut setting_strings, "mode".to_string())?;
+
+        // Try to convert the mode into one of either Mode::Random, Mode::Genetic, or Mode::Inference
+        let mode = match modestr.as_str() {
+            "random" => Mode::Random,
+            "genetic" => Mode::Genetic,
+            "inference" => Mode::Inference,
+            m => {
+                let mut errmsg = String::new();
+                writeln!(errmsg, "Mode must be 'random' or 'genetic' but is {}", m).unwrap();
+                return Err(errmsg);
+            },
         };
 
-        let nsteps_per_episode = match nsteps_per_episode_str.get().parse::<u64>() {
-            Ok(x) => x,
-            Err(_) => return Err("Could not convert nsteps_per_episode to integer.".to_string()),
-        };
-
-        let nepisodes_str = match setting_strings.entry("nepisodes".to_string()) {
-            hash_map::Entry::Occupied(o) => o,
-            hash_map::Entry::Vacant(_) => return Err("Missing 'nepisodes' in config file.".to_string()),
-        };
-
-        let nepisodes = match nepisodes_str.get().parse::<u64>() {
-            Ok(x) => x,
-            Err(_) => return Err("Could not convert nepisodes to integer.".to_string()),
-        };
-
+        // Check if 'seed' is present
         let seedstr = match setting_strings.entry("seed".to_string()) {
             hash_map::Entry::Occupied(o) => o,
             hash_map::Entry::Vacant(_) => return Err("Missing 'seed' in config file.".to_string()),
         }.get().clone();
 
+        // Create a seed (chosen at random itself) if there is no seed in the config file
+        // Otherwise just parse it into a u64
         let seed = if seedstr.to_ascii_lowercase() == "none" {
             let mut rng = rand::thread_rng();
             rng.next_u64()
@@ -84,68 +89,55 @@ impl ExperimentConfig {
             }
         };
 
-        let modestr = match setting_strings.entry("mode".to_string()) {
-            hash_map::Entry::Occupied(o) => o,
-            hash_map::Entry::Vacant(_) => return Err("Missing 'mode' in config file.".to_string()),
-        }.get().clone();
+        // Parse out nsteps_per_episode if mode is genetic or random
+        let nsteps_per_episode = parse_parameter::<u64>(&mut setting_strings, "nsteps_per_episode".to_string())?;
 
-        // Try to convert the mode into one of either Mode::Random or Mode::Genetic
-        let mode = match modestr.as_str() {
-            "random" => Mode::Random,
-            "genetic" => Mode::Genetic,
-            m => {
-                let mut errmsg = String::new();
-                writeln!(errmsg, "Mode must be 'random' or 'genetic' but is {}", m).unwrap();
-                return Err(errmsg);
-            },
+        // Parse out the number of episodes if mode is genetic or random
+        let nepisodes = match mode {
+            Mode::Inference => 1,
+            Mode::Genetic | Mode::Random => parse_parameter::<u64>(&mut setting_strings, "nepisodes".to_string())?,
         };
 
         // Parse out 'com'
-        let comstr = match setting_strings.entry("com".to_string()) {
-            hash_map::Entry::Occupied(o) => o,
-            hash_map::Entry::Vacant(_) => return Err("Missing 'com' in config file.".to_string()),
-        }.get().clone();
+        let comstr = parse_parameter::<String>(&mut setting_strings, "com".to_string())?;
 
         // Parse out 'arm_urdf'
-        let urdfpath = match setting_strings.entry("arm_urdf".to_string()) {
-            hash_map::Entry::Occupied(o) => o,
-            hash_map::Entry::Vacant(_) => return Err("Missing 'arm_urdf' in config file.".to_string()),
-        }.get().clone();
+        let urdfpath = parse_parameter::<String>(&mut setting_strings, "arm_urdf".to_string())?;
 
         // Parse out the number of networks in a generation if the mode is genetic
         let generation_size = match mode {
-            Mode::Random => 0,
-            Mode::Genetic => parse_genetic_parameter::<u64>(&mut setting_strings, "generation_size".to_string())?,
+            Mode::Random | Mode::Inference => 0,
+            Mode::Genetic => parse_parameter::<u64>(&mut setting_strings, "generation_size".to_string())?,
         };
 
         // Parse out 'randomized_weights_low' if the mode is genetic
         let low = match mode {
-            Mode::Random => 0.0,
-            Mode::Genetic => parse_genetic_parameter::<f64>(&mut setting_strings, "randomized_weights_low".to_string())?,
+            Mode::Random | Mode::Inference => 0.0,
+            Mode::Genetic => parse_parameter::<f64>(&mut setting_strings, "randomized_weights_low".to_string())?,
         };
 
         // Parse out 'randomized_weights_high' if the mode is genetic
         let high = match mode {
-            Mode::Random => 0.0,
-            Mode::Genetic => parse_genetic_parameter::<f64>(&mut setting_strings, "randomized_weights_high".to_string())?,
+            Mode::Random | Mode::Inference => 0.0,
+            Mode::Genetic => parse_parameter::<f64>(&mut setting_strings, "randomized_weights_high".to_string())?,
         };
 
         // Parse out 'nkeep_between_generations' if the mode is genetic
         let nkeep = match mode {
-            Mode::Random => 0,
-            Mode::Genetic => parse_genetic_parameter::<u64>(&mut setting_strings, "nkeep_between_generations".to_string())?,
+            Mode::Random | Mode::Inference => 0,
+            Mode::Genetic => parse_parameter::<u64>(&mut setting_strings, "nkeep_between_generations".to_string())?,
         };
 
         // Parse out 'mutation_stdev' if the mode is genetic
         let mutation_stdev = match mode {
-            Mode::Random => 0.0,
-            Mode::Genetic => parse_genetic_parameter::<f64>(&mut setting_strings, "mutation_stdev".to_string())?,
+            Mode::Random | Mode::Inference => 0.0,
+            Mode::Genetic => parse_parameter::<f64>(&mut setting_strings, "mutation_stdev".to_string())?,
         };
 
         // Parse out 'percent_mutate' if the mode is genetic
         let percent_mutate = match mode {
-            Mode::Random => 0.0,
-            Mode::Genetic => parse_genetic_parameter::<f64>(&mut setting_strings, "percent_mutate".to_string())?,
+            Mode::Random | Mode::Inference => 0.0,
+            Mode::Genetic => parse_parameter::<f64>(&mut setting_strings, "percent_mutate".to_string())?,
         };
 
         // Check to make sure percent_mutate is within allowed bounds
@@ -155,18 +147,24 @@ impl ExperimentConfig {
             return Err(msg);
         };
 
+        // Parse out 'weights' if the mode is inference
+        let weights = match mode {
+            Mode::Genetic | Mode::Random => String::new(),
+            Mode::Inference => parse_parameter(&mut setting_strings, "weights".to_string())?,
+        };
+
         // Parse out 'target_*' if the mode is genetic
         let target_x = match mode {
-            Mode::Random => 0.0,
-            Mode::Genetic => parse_genetic_parameter::<f64>(&mut setting_strings, "target_x".to_string())?,
+            Mode::Random | Mode::Inference => 0.0,
+            Mode::Genetic => parse_parameter::<f64>(&mut setting_strings, "target_x".to_string())?,
         };
         let target_y = match mode {
-            Mode::Random => 0.0,
-            Mode::Genetic => parse_genetic_parameter::<f64>(&mut setting_strings, "target_y".to_string())?,
+            Mode::Random | Mode::Inference => 0.0,
+            Mode::Genetic => parse_parameter::<f64>(&mut setting_strings, "target_y".to_string())?,
         };
         let target_z = match mode {
-            Mode::Random => 0.0,
-            Mode::Genetic => parse_genetic_parameter::<f64>(&mut setting_strings, "target_z".to_string())?,
+            Mode::Random | Mode::Inference => 0.0,
+            Mode::Genetic => parse_parameter::<f64>(&mut setting_strings, "target_z".to_string())?,
         };
         let target = na::Translation3::new(target_x, target_y, target_z);
 
@@ -185,11 +183,13 @@ impl ExperimentConfig {
             target: target,
             urdfpath: urdfpath,
             seed: seed,
+            weights: weights,
         })
     }
 }
 
-fn parse_genetic_parameter<T: FromStr>(setting_strings: &mut HashMap<String, String>, s: String) -> Result<T, String> {
+/// Attempts to parse the given string `s` into a new instance of type `T`.
+fn parse_parameter<T: FromStr>(setting_strings: &mut HashMap<String, String>, s: String) -> Result<T, String> {
     match setting_strings.entry(s.clone()) {
         hash_map::Entry::Vacant(_) => {
             let mut msg = String::new();
@@ -227,6 +227,7 @@ impl fmt::Display for ExperimentConfig {
         }
         writeln!(f, "Target for gripper: {:?}", self.target)?;
         writeln!(f, "Path to URDF file: {}", self.urdfpath)?;
-        writeln!(f, "Seed: {}", self.seed)
+        writeln!(f, "Seed: {}", self.seed)?;
+        writeln!(f, "Weights: {}", self.weights)
     }
 }
