@@ -291,9 +291,12 @@ fn run_genetic_episode<'a>(experiment: &'a ExperimentConfig, rng: &mut rand::Std
 
     // Go to random start position - but should be the same start position every time
     let mut rngcopy: StdRng = rand::SeedableRng::seed_from_u64(experiment.seed);
-    let base_start: f64 = num::clamp(ANGLE_START_BASE as f64 + rngcopy.gen_range(-30.0, 30.0), ANGLE_LOWER_LIMIT_BASE as f64, ANGLE_UPPER_LIMIT_BASE as f64);
-    let shoulder_start: f64 = num::clamp(ANGLE_START_SHOULDER as f64 + rngcopy.gen_range(-30.0, 30.0), ANGLE_LOWER_LIMIT_SHOULDER as f64, ANGLE_UPPER_LIMIT_SHOULDER as f64);
-    let elbow_start: f64 = num::clamp(ANGLE_START_ELBOW as f64 + rngcopy.gen_range(-30.0, 30.0), ANGLE_LOWER_LIMIT_ELBOW as f64, ANGLE_UPPER_LIMIT_ELBOW as f64);
+    //let mut blahrng = thread_rng();
+    //let seed = blahrng.next_u64();
+    //let mut rngcopy: StdRng = rand::SeedableRng::seed_from_u64(seed);
+    let base_start: f64 = num::clamp(ANGLE_START_BASE as f64 + rngcopy.gen_range(-10.0, 10.0), ANGLE_LOWER_LIMIT_BASE as f64, ANGLE_UPPER_LIMIT_BASE as f64);
+    let shoulder_start: f64 = num::clamp(ANGLE_START_SHOULDER as f64 + rngcopy.gen_range(-10.0, 10.0), ANGLE_LOWER_LIMIT_SHOULDER as f64, ANGLE_UPPER_LIMIT_SHOULDER as f64);
+    let elbow_start: f64 = num::clamp(ANGLE_START_ELBOW as f64 + rngcopy.gen_range(-10.0, 10.0), ANGLE_LOWER_LIMIT_ELBOW as f64, ANGLE_UPPER_LIMIT_ELBOW as f64);
     writeln!(f, "servo {} {}", BASENUM, base_start);
     writeln!(f, "servo {} {}", SHOULDERNUM, shoulder_start);
     writeln!(f, "servo {} {}", ELBOWNUM, elbow_start);
@@ -371,5 +374,6 @@ fn run_step_using_network(network: &network::MultilayerPerceptron, base: &mut f6
 /// Calculate a value that is higher the closer dx, dy, and dz are to zero without.
 fn calculate_fitness(dx: f64, dy: f64, dz: f64) -> f64 {
     let distance = (dx * dx + dy * dy + dz * dz).sqrt();
-    1.0 / (distance + 1E-9)
+    0.7 - distance // 0.7ish is the diameter of the sphere around the arm
+    //1.0 / (distance + 1E-9)
 }
